@@ -160,7 +160,7 @@ export const PUT = async (
 
     // TODO: Add permission check here - for now, only owner can update
     // In future, we might want to check membership role as well
-    if (existingBrand.ownerId.toString() !== user_id) {
+    if (existingBrand.ownerId._id.toString() !== user_id) {
       return new NextResponse(
         JSON.stringify({ message: "You are not the owner of the brand!" }),
         { status: 403 }
@@ -263,7 +263,7 @@ export const DELETE = async (
 
     // TODO: Add permission check here - for now, only owner can delete
     // check if the user is the owner of the brand
-    if (existingBrand.ownerId.toString() !== user_id) {
+    if (existingBrand.ownerId._id.toString() !== user_id) {
       return new NextResponse(
         JSON.stringify({ message: "You are not the owner of the brand!" }),
         { status: 403 }

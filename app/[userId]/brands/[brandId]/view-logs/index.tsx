@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Filter,
   Search,
@@ -11,9 +11,30 @@ import {
   AlertCircle,
   FileText,
   Download,
+  Play,
 } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { LogEntry } from "@/types/brand";
+import { LogsResponse } from "@/types/brand";
+import { useUserContext } from "@/context/userContext";
+import { fetchData, postData } from "@/utils/fetch";
+import Loading from "@/components/loading";
+import { models, periods, stages } from "@/constants/dashboard";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+  PaginationEllipsis,
+} from "@/components/ui/pagination";
 
 export default function ViewLogs({
   userId,
@@ -22,79 +43,163 @@ export default function ViewLogs({
   userId: string;
   brandId: string;
 }) {
+  const { user } = useUserContext();
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedModel, setSelectedModel] = useState("all");
   const [selectedStage, setSelectedStage] = useState("all");
   const [selectedStatus, setSelectedStatus] = useState("all");
-  const [dateRange, setDateRange] = useState("7days");
+  const [dateRange, setDateRange] = useState("7d");
+  const [logsData, setLogsData] = useState<LogsResponse | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [triggeringAnalysis, setTriggeringAnalysis] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [limit, setLimit] = useState(10);
 
-  // Mock log data
-  const logs: LogEntry[] = [
-    {
-      id: "1",
-      timestamp: "2024-01-15T10:30:00Z",
-      model: "ChatGPT",
-      stage: "TOFU",
-      prompt: "What are the benefits of using TechCorp's cloud solutions?",
-      response:
-        "TechCorp offers scalable, secure, and cost-effective cloud solutions...",
-      score: 87,
-      responseTime: 1.2,
-      status: "success",
-      userId: "user123",
-    },
-    {
-      id: "2",
-      timestamp: "2024-01-15T10:25:00Z",
-      model: "Claude",
-      stage: "MOFU",
-      prompt: "How does TechCorp compare to competitors in pricing?",
-      response:
-        "TechCorp provides competitive pricing with transparent cost structure...",
-      score: 82,
-      responseTime: 1.4,
-      status: "success",
-      userId: "user456",
-    },
-    {
-      id: "3",
-      timestamp: "2024-01-15T10:20:00Z",
-      model: "Gemini",
-      stage: "BOFU",
-      prompt: "What is TechCorp's refund policy?",
-      response: "Error: Unable to retrieve refund policy information",
-      score: 0,
-      responseTime: 2.1,
-      status: "error",
-      userId: "user789",
-    },
-    {
-      id: "4",
-      timestamp: "2024-01-15T10:15:00Z",
-      model: "ChatGPT",
-      stage: "EVFU",
-      prompt: "How can I upgrade my TechCorp subscription?",
-      response:
-        "You can upgrade your subscription through the customer portal...",
-      score: 91,
-      responseTime: 1.1,
-      status: "success",
-      userId: "user123",
-    },
-    {
-      id: "5",
-      timestamp: "2024-01-15T10:10:00Z",
-      model: "Claude",
-      stage: "TOFU",
-      prompt: "What industries does TechCorp serve?",
-      response:
-        "TechCorp serves various industries including healthcare, finance...",
-      score: 75,
-      responseTime: 1.8,
-      status: "warning",
-      userId: "user456",
-    },
-  ];
+  // Fetch logs data
+  useEffect(() => {
+    async function fetchLogsData() {
+      if (!userId || !brandId || !user._id) return;
+
+      try {
+        setLoading(true);
+        setError("");
+
+        const params = new URLSearchParams({
+          userId: user._id,
+          page: currentPage.toString(),
+          limit: limit.toString(),
+          model: selectedModel,
+          stage: selectedStage,
+          status: selectedStatus,
+          search: searchTerm,
+          sortBy: "createdAt",
+          sortOrder: "desc",
+        });
+
+        const url = `/api/brand/${brandId}/logs?${params.toString()}`;
+        const response = await fetchData(url);
+        const { data } = response;
+        setLogsData(data);
+      } catch (err) {
+        setError(
+          err instanceof Error ? err.message : "Failed to fetch logs data"
+        );
+        console.error("Logs fetch error:", err);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchLogsData();
+  }, [
+    userId,
+    brandId,
+    user._id,
+    selectedModel,
+    selectedStage,
+    selectedStatus,
+    searchTerm,
+    currentPage,
+    limit,
+  ]);
+
+  // Trigger new analysis
+  const triggerAnalysis = async () => {
+    if (!userId || !brandId || !user._id) return;
+
+    try {
+      setTriggeringAnalysis(true);
+
+      const requestBody = {
+        userId: user._id,
+      };
+
+      const response = await postData(
+        `/api/brand/${brandId}/logs`,
+        requestBody
+      );
+
+      // Refresh logs after successful analysis
+      setTimeout(() => {
+        setCurrentPage(1); // Reset to first page
+        // This will trigger the useEffect to refresh data
+      }, 2000);
+
+      alert("Analysis triggered successfully! Check back in a few moments.");
+    } catch (err) {
+      const errorMsg =
+        err instanceof Error ? err.message : "Failed to trigger analysis";
+      alert(`Error: ${errorMsg}`);
+      console.error("Trigger analysis error:", err);
+    } finally {
+      setTriggeringAnalysis(false);
+    }
+  };
+
+  // Loading state
+  if (loading) {
+    return (
+      <div className="h-[60vh] flex items-center justify-center">
+        <Loading message="Loading logs..." />
+      </div>
+    );
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <div className="p-6">
+        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
+          <h3 className="text-red-800 dark:text-red-200 font-medium">
+            Error Loading Logs
+          </h3>
+          <p className="text-red-600 dark:text-red-400 mt-2">{error}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="mt-3 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Use real logs data or empty array
+  const logs = logsData?.logs || [];
+  const pagination = logsData?.pagination;
+
+  // Pagination helpers
+  const totalPages = pagination?.totalPages || 1;
+  const hasNextPage = pagination?.hasMore || false;
+  const hasPreviousPage = pagination?.hasPrevious || false;
+
+  const handlePageChange = (page: number) => {
+    if (page >= 1 && page <= totalPages) {
+      setCurrentPage(page);
+    }
+  };
+
+  const generatePageNumbers = () => {
+    const pages = [];
+    const maxPagesToShow = 5;
+
+    if (totalPages <= maxPagesToShow) {
+      for (let i = 1; i <= totalPages; i++) {
+        pages.push(i);
+      }
+    } else {
+      const start = Math.max(1, currentPage - 2);
+      const end = Math.min(totalPages, start + maxPagesToShow - 1);
+
+      for (let i = start; i <= end; i++) {
+        pages.push(i);
+      }
+    }
+
+    return pages;
+  };
 
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -136,15 +241,6 @@ export default function ViewLogs({
     ) {
       return false;
     }
-    if (selectedModel !== "all" && log.model.toLowerCase() !== selectedModel) {
-      return false;
-    }
-    if (selectedStage !== "all" && log.stage !== selectedStage) {
-      return false;
-    }
-    if (selectedStatus !== "all" && log.status !== selectedStatus) {
-      return false;
-    }
     return true;
   });
 
@@ -164,10 +260,20 @@ export default function ViewLogs({
             Monitor all AI interactions and responses for Brand {brandId}
           </p>
         </div>
-        <Button className="flex items-center gap-2">
-          <Download className="w-4 h-4" />
-          Export Logs
-        </Button>
+        <div className="flex items-center gap-3">
+          <Button
+            onClick={triggerAnalysis}
+            disabled={triggeringAnalysis}
+            className="flex items-center gap-2 bg-primary hover:bg-primary/90"
+          >
+            <Play className="w-4 h-4" />
+            {triggeringAnalysis ? "Analyzing..." : "Trigger Analysis"}
+          </Button>
+          <Button className="flex items-center gap-2" variant="outline">
+            <Download className="w-4 h-4" />
+            Export Logs
+          </Button>
+        </div>
       </div>
 
       {/* Filters */}
@@ -192,61 +298,82 @@ export default function ViewLogs({
             <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
               Model
             </label>
-            <select
+            <Select
               value={selectedModel}
-              onChange={(e) => setSelectedModel(e.target.value)}
-              className="w-full text-sm border border-input rounded-md px-3 py-2 bg-background text-foreground"
+              onValueChange={(value) => setSelectedModel(value)}
             >
-              <option value="all">All Models</option>
-              <option value="chatgpt">ChatGPT</option>
-              <option value="claude">Claude</option>
-              <option value="gemini">Gemini</option>
-            </select>
+              <SelectTrigger className="w-44">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Models</SelectItem>
+                {models.map((model) => (
+                  <SelectItem key={model} value={model}>
+                    {model}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <div>
             <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
               Stage
             </label>
-            <select
+            <Select
               value={selectedStage}
-              onChange={(e) => setSelectedStage(e.target.value)}
-              className="w-full text-sm border border-input rounded-md px-3 py-2 bg-background text-foreground"
+              onValueChange={(value) => setSelectedStage(value)}
             >
-              <option value="all">All Stages</option>
-              <option value="TOFU">TOFU</option>
-              <option value="MOFU">MOFU</option>
-              <option value="BOFU">BOFU</option>
-              <option value="EVFU">EVFU</option>
-            </select>
+              <SelectTrigger className="w-44">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Stages</SelectItem>
+                {stages.map((stage) => (
+                  <SelectItem key={stage} value={stage}>
+                    {stage}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <div>
             <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
               Status
             </label>
-            <select
+            <Select
               value={selectedStatus}
-              onChange={(e) => setSelectedStatus(e.target.value)}
-              className="w-full text-sm border border-input rounded-md px-3 py-2 bg-background text-foreground"
+              onValueChange={(value) => setSelectedStatus(value)}
             >
-              <option value="all">All Status</option>
-              <option value="success">Success</option>
-              <option value="warning">Warning</option>
-              <option value="error">Error</option>
-            </select>
+              <SelectTrigger className="w-44">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Status</SelectItem>
+                <SelectItem value="success">Success</SelectItem>
+                <SelectItem value="warning">Warning</SelectItem>
+                <SelectItem value="error">Error</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
           <div>
             <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
               Period
             </label>
-            <select
+            <Select
               value={dateRange}
-              onChange={(e) => setDateRange(e.target.value)}
-              className="w-full text-sm border border-input rounded-md px-3 py-2 bg-background text-foreground"
+              onValueChange={(value) => setDateRange(value)}
             >
-              <option value="7days">Last 7 days</option>
-              <option value="30days">Last 30 days</option>
-              <option value="90days">Last 90 days</option>
-            </select>
+              <SelectTrigger className="w-44">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {periods.map(({ label, value }) => (
+                  <SelectItem key={value} value={value}>
+                    {label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         </div>
       </div>
@@ -259,7 +386,9 @@ export default function ViewLogs({
               Recent Activity
             </h3>
             <span className="text-sm text-gray-500 dark:text-gray-400">
-              {filteredLogs.length} entries found
+              {pagination
+                ? `${pagination.total} total entries • Page ${pagination.page} of ${totalPages}`
+                : `${filteredLogs.length} entries found`}
             </span>
           </div>
 
@@ -358,6 +487,55 @@ export default function ViewLogs({
               <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
                 Try adjusting your filters to see more results.
               </p>
+            </div>
+          )}
+
+          {/* Pagination */}
+          {pagination && totalPages > 1 && (
+            <div className="mt-6 flex justify-center">
+              <Pagination>
+                <PaginationContent>
+                  <PaginationItem>
+                    <PaginationPrevious
+                      onClick={() => handlePageChange(currentPage - 1)}
+                      className={
+                        !hasPreviousPage
+                          ? "pointer-events-none opacity-50"
+                          : "cursor-pointer"
+                      }
+                    />
+                  </PaginationItem>
+
+                  {generatePageNumbers().map((pageNumber, index) => (
+                    <PaginationItem key={pageNumber}>
+                      <PaginationLink
+                        onClick={() => handlePageChange(pageNumber)}
+                        isActive={pageNumber === currentPage}
+                        className="cursor-pointer"
+                      >
+                        {pageNumber}
+                      </PaginationLink>
+                    </PaginationItem>
+                  ))}
+
+                  {totalPages > 5 && currentPage < totalPages - 2 && (
+                    <PaginationItem>
+                      <PaginationEllipsis />
+                    </PaginationItem>
+                  )}
+
+                  <PaginationItem>
+                    <PaginationNext
+                      onClick={() => handlePageChange(currentPage + 1)}
+                      className={
+                        !hasNextPage
+                          ? "pointer-events-none opacity-50"
+                          : "cursor-pointer"
+                      }
+                    />
+                  </PaginationItem>
+                </PaginationContent>
+              </Pagination>
             </div>
           )}
         </div>
