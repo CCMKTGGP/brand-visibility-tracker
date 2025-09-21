@@ -227,8 +227,16 @@ const MatrixPage = ({
             Performance Matrix
           </h1>
           <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-            Detailed performance analysis across AI models and funnel stages
+            Multi-prompt analysis performance across AI models and funnel stages
           </p>
+          <div className="mt-2 px-3 py-2 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+            <p className="text-xs text-blue-800 dark:text-blue-200">
+              <strong>Multi-Prompt Analysis:</strong> Each analysis runs 20
+              custom prompts per model/stage with position-based weighted
+              scoring. Higher weighted scores indicate better brand mention
+              positioning in AI responses.
+            </p>
+          </div>
         </div>
       </div>
 
@@ -330,13 +338,16 @@ const MatrixPage = ({
                     Stage
                   </th>
                   <th className="text-center py-3 px-4 font-medium text-gray-900 dark:text-white">
-                    Score
+                    Overall Score
                   </th>
                   <th className="text-center py-3 px-4 font-medium text-gray-900 dark:text-white">
-                    Prompts
+                    Weighted Score
                   </th>
                   <th className="text-center py-3 px-4 font-medium text-gray-900 dark:text-white">
-                    Avg Response
+                    Analyses
+                  </th>
+                  <th className="text-center py-3 px-4 font-medium text-gray-900 dark:text-white">
+                    Total Prompts
                   </th>
                   <th className="text-center py-3 px-4 font-medium text-gray-900 dark:text-white">
                     Success Rate
@@ -388,13 +399,39 @@ const MatrixPage = ({
                       </div>
                     </td>
                     <td className="py-4 px-4 text-center">
-                      <span className="text-gray-900 dark:text-white font-medium">
-                        {item.prompts}
-                      </span>
+                      <div className="flex items-center justify-center">
+                        <div className="flex items-center">
+                          <div
+                            className={`w-3 h-3 rounded-full mr-2 ${getScoreColor(
+                              (item as any).weightedScore || item.score
+                            )}`}
+                          />
+                          <span
+                            className={`font-semibold ${getScoreTextColor(
+                              (item as any).weightedScore || item.score
+                            )}`}
+                          >
+                            {Math.round(
+                              (item as any).weightedScore || item.score
+                            )}
+                            %
+                          </span>
+                        </div>
+                      </div>
                     </td>
                     <td className="py-4 px-4 text-center">
-                      <span className="text-gray-900 dark:text-white">
-                        {item.avgResponseTime}s
+                      <div className="text-center">
+                        <span className="text-gray-900 dark:text-white font-medium">
+                          {(item as any).analyses || "N/A"}
+                        </span>
+                        <div className="text-xs text-gray-500 dark:text-gray-400">
+                          multi-prompt runs
+                        </div>
+                      </div>
+                    </td>
+                    <td className="py-4 px-4 text-center">
+                      <span className="text-gray-900 dark:text-white font-medium">
+                        {item.prompts}
                       </span>
                     </td>
                     <td className="py-4 px-4 text-center">
@@ -477,7 +514,7 @@ const MatrixPage = ({
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
           <div className="flex items-center">
             <div className="p-2 bg-green-100 dark:bg-green-900 rounded-lg">
@@ -488,10 +525,16 @@ const MatrixPage = ({
                 Best Performing
               </h3>
               <p className="text-lg font-bold text-gray-900 dark:text-white">
-                Claude - EVFU
+                {matrixData.summary?.bestPerforming
+                  ? `${matrixData.summary.bestPerforming.model} - ${matrixData.summary.bestPerforming.stage}`
+                  : "N/A"}
               </p>
               <p className="text-sm text-green-600 dark:text-green-400">
-                97% Success Rate
+                {matrixData.summary?.bestPerforming
+                  ? `${Math.round(
+                      matrixData.summary.bestPerforming.score
+                    )}% Weighted Score`
+                  : "No data"}
               </p>
             </div>
           </div>
@@ -504,13 +547,13 @@ const MatrixPage = ({
             </div>
             <div className="ml-4">
               <h3 className="text-sm font-medium text-gray-600 dark:text-gray-400">
-                Total Prompts
+                Total Analyses
               </h3>
               <p className="text-lg font-bold text-gray-900 dark:text-white">
-                {matrixItems.reduce((sum, item) => sum + item.prompts, 0)}
+                {matrixData.summary?.totalAnalyses || 0}
               </p>
               <p className="text-sm text-blue-600 dark:text-blue-400">
-                Across all models
+                Multi-prompt runs
               </p>
             </div>
           </div>
@@ -523,19 +566,43 @@ const MatrixPage = ({
             </div>
             <div className="ml-4">
               <h3 className="text-sm font-medium text-gray-600 dark:text-gray-400">
-                Avg Response Time
+                Total Prompts
               </h3>
               <p className="text-lg font-bold text-gray-900 dark:text-white">
-                {(
-                  matrixItems.reduce(
-                    (sum, item) => sum + item.avgResponseTime,
-                    0
-                  ) / matrixItems.length
-                ).toFixed(1)}
-                s
+                {(matrixData.summary as any)?.totalPrompts ||
+                  matrixItems.reduce((sum, item) => sum + item.prompts, 0)}
               </p>
               <p className="text-sm text-purple-600 dark:text-purple-400">
-                Overall average
+                Across all analyses
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+          <div className="flex items-center">
+            <div className="p-2 bg-orange-100 dark:bg-orange-900 rounded-lg">
+              <TrendingUp className="w-5 h-5 text-orange-600 dark:text-orange-400" />
+            </div>
+            <div className="ml-4">
+              <h3 className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                Avg Weighted Score
+              </h3>
+              <p className="text-lg font-bold text-gray-900 dark:text-white">
+                {(matrixData.summary as any)?.avgWeightedScore
+                  ? `${Math.round(
+                      (matrixData.summary as any).avgWeightedScore
+                    )}%`
+                  : `${Math.round(
+                      matrixItems.reduce(
+                        (sum, item) =>
+                          sum + ((item as any).weightedScore || item.score),
+                        0
+                      ) / (matrixItems.length || 1)
+                    )}%`}
+              </p>
+              <p className="text-sm text-orange-600 dark:text-orange-400">
+                Position-weighted
               </p>
             </div>
           </div>

@@ -2,9 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import {
-  Filter,
   Search,
-  Calendar,
   Clock,
   CheckCircle,
   XCircle,
@@ -35,6 +33,8 @@ import {
   PaginationPrevious,
   PaginationEllipsis,
 } from "@/components/ui/pagination";
+import { toast } from "sonner";
+import { useRouter } from "next/navigation";
 
 export default function ViewLogs({
   userId,
@@ -43,6 +43,7 @@ export default function ViewLogs({
   userId: string;
   brandId: string;
 }) {
+  const router = useRouter();
   const { user } = useUserContext();
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedModel, setSelectedModel] = useState("all");
@@ -55,6 +56,19 @@ export default function ViewLogs({
   const [triggeringAnalysis, setTriggeringAnalysis] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [limit, setLimit] = useState(10);
+  const [sortBy, setSortBy] = useState("createdAt");
+  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
+
+  // Helper function to toggle row expansion
+  const toggleRowExpansion = (logId: string) => {
+    const newExpanded = new Set(expandedRows);
+    if (newExpanded.has(logId)) {
+      newExpanded.delete(logId);
+    } else {
+      newExpanded.add(logId);
+    }
+    setExpandedRows(newExpanded);
+  };
 
   // Fetch logs data
   useEffect(() => {
@@ -73,7 +87,7 @@ export default function ViewLogs({
           stage: selectedStage,
           status: selectedStatus,
           search: searchTerm,
-          sortBy: "createdAt",
+          sortBy: sortBy,
           sortOrder: "desc",
         });
 
@@ -102,6 +116,7 @@ export default function ViewLogs({
     searchTerm,
     currentPage,
     limit,
+    sortBy,
   ]);
 
   // Trigger new analysis
@@ -126,12 +141,14 @@ export default function ViewLogs({
         // This will trigger the useEffect to refresh data
       }, 2000);
 
-      alert("Analysis triggered successfully! Check back in a few moments.");
+      toast.success(
+        "Analysis triggered successfully! Check back in a few moments."
+      );
+      router.refresh();
     } catch (err) {
       const errorMsg =
         err instanceof Error ? err.message : "Failed to trigger analysis";
-      alert(`Error: ${errorMsg}`);
-      console.error("Trigger analysis error:", err);
+      toast.error(`Error: ${errorMsg}`);
     } finally {
       setTriggeringAnalysis(false);
     }
@@ -397,7 +414,15 @@ export default function ViewLogs({
               <thead>
                 <tr className="border-b border-gray-200 dark:border-gray-700">
                   <th className="text-left py-3 px-4 font-medium text-gray-900 dark:text-white">
-                    Timestamp
+                    <button
+                      className="flex items-center hover:text-blue-600 dark:hover:text-blue-400"
+                      onClick={() => setSortBy("createdAt")}
+                    >
+                      Timestamp
+                      {sortBy === "createdAt" && (
+                        <span className="ml-1">↓</span>
+                      )}
+                    </button>
                   </th>
                   <th className="text-left py-3 px-4 font-medium text-gray-900 dark:text-white">
                     Model
@@ -405,74 +430,198 @@ export default function ViewLogs({
                   <th className="text-left py-3 px-4 font-medium text-gray-900 dark:text-white">
                     Stage
                   </th>
-                  <th className="text-left py-3 px-4 font-medium text-gray-900 dark:text-white">
-                    Prompt
+                  <th className="text-center py-3 px-4 font-medium text-gray-900 dark:text-white">
+                    <button
+                      className="flex items-center hover:text-blue-600 dark:hover:text-blue-400"
+                      onClick={() => setSortBy("overallScore")}
+                    >
+                      Overall Score
+                      {sortBy === "overallScore" && (
+                        <span className="ml-1">↓</span>
+                      )}
+                    </button>
                   </th>
                   <th className="text-center py-3 px-4 font-medium text-gray-900 dark:text-white">
-                    Score
+                    <button
+                      className="flex items-center hover:text-blue-600 dark:hover:text-blue-400"
+                      onClick={() => setSortBy("weightedScore")}
+                    >
+                      Weighted Score
+                      {sortBy === "weightedScore" && (
+                        <span className="ml-1">↓</span>
+                      )}
+                    </button>
                   </th>
                   <th className="text-center py-3 px-4 font-medium text-gray-900 dark:text-white">
-                    Response Time
+                    <button
+                      className="flex items-center hover:text-blue-600 dark:hover:text-blue-400"
+                      onClick={() => setSortBy("successRate")}
+                    >
+                      Success Rate
+                      {sortBy === "successRate" && (
+                        <span className="ml-1">↓</span>
+                      )}
+                    </button>
                   </th>
                   <th className="text-center py-3 px-4 font-medium text-gray-900 dark:text-white">
                     Status
+                  </th>
+                  <th className="text-center py-3 px-4 font-medium text-gray-900 dark:text-white">
+                    Details
                   </th>
                 </tr>
               </thead>
               <tbody>
                 {filteredLogs.map((log, index) => (
-                  <tr
-                    key={log.id}
-                    className={`border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 ${
-                      index % 2 === 0 ? "bg-gray-50/50 dark:bg-gray-800/50" : ""
-                    }`}
-                  >
-                    <td className="py-4 px-4">
-                      <div className="flex items-center text-sm text-gray-600 dark:text-gray-400">
-                        <Clock className="w-4 h-4 mr-2" />
-                        {formatTimestamp(log.timestamp)}
-                      </div>
-                    </td>
-                    <td className="py-4 px-4">
-                      <span className="font-medium text-gray-900 dark:text-white">
-                        {log.model}
-                      </span>
-                    </td>
-                    <td className="py-4 px-4">
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300">
-                        {log.stage}
-                      </span>
-                    </td>
-                    <td className="py-4 px-4 max-w-xs">
-                      <p className="text-sm text-gray-900 dark:text-white truncate">
-                        {log.prompt}
-                      </p>
-                    </td>
-                    <td className="py-4 px-4 text-center">
-                      <span
-                        className={`font-semibold ${getScoreColor(log.score)}`}
-                      >
-                        {log.score}%
-                      </span>
-                    </td>
-                    <td className="py-4 px-4 text-center">
-                      <span className="text-gray-900 dark:text-white">
-                        {log.responseTime}s
-                      </span>
-                    </td>
-                    <td className="py-4 px-4 text-center">
-                      <div className="flex items-center justify-center">
+                  <React.Fragment key={log.id}>
+                    <tr
+                      className={`border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 ${
+                        index % 2 === 0
+                          ? "bg-gray-50/50 dark:bg-gray-800/50"
+                          : ""
+                      }`}
+                    >
+                      <td className="py-4 px-4">
+                        <div className="flex items-center text-sm text-gray-600 dark:text-gray-400">
+                          <Clock className="w-4 h-4 mr-2" />
+                          {formatTimestamp(log.timestamp)}
+                        </div>
+                      </td>
+                      <td className="py-4 px-4">
+                        <span className="font-medium text-gray-900 dark:text-white">
+                          {log.model}
+                        </span>
+                      </td>
+                      <td className="py-4 px-4">
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300">
+                          {log.stage}
+                        </span>
+                      </td>
+                      <td className="py-4 px-4 text-center">
                         <span
-                          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(
-                            log.status
+                          className={`font-semibold ${getScoreColor(
+                            log.score
                           )}`}
                         >
-                          {getStatusIcon(log.status)}
-                          <span className="ml-1 capitalize">{log.status}</span>
+                          {Math.round(log.score)}%
                         </span>
-                      </div>
-                    </td>
-                  </tr>
+                      </td>
+                      <td className="py-4 px-4 text-center">
+                        {(log as any).weightedScore !== undefined ? (
+                          <span
+                            className={`font-semibold ${getScoreColor(
+                              (log as any).weightedScore
+                            )}`}
+                          >
+                            {Math.round((log as any).weightedScore)}%
+                          </span>
+                        ) : (
+                          <span className="text-gray-400">N/A</span>
+                        )}
+                      </td>
+                      <td className="py-4 px-4 text-center">
+                        <div className="flex flex-col">
+                          <span className="text-gray-900 dark:text-white font-medium">
+                            {Math.round(log.successRate)}%
+                          </span>
+                          <span className="text-xs text-gray-500 dark:text-gray-400">
+                            {Math.round(log.responseTime / 1000)}s
+                          </span>
+                        </div>
+                      </td>
+                      <td className="py-4 px-4 text-center">
+                        <div className="flex items-center justify-center">
+                          <span
+                            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(
+                              log.status
+                            )}`}
+                          >
+                            {getStatusIcon(log.status)}
+                            <span className="ml-1 capitalize">
+                              {log.status}
+                            </span>
+                          </span>
+                        </div>
+                      </td>
+                      <td className="py-4 px-4 text-center">
+                        {(log as any).promptResults &&
+                          (log as any).promptResults.length > 0 && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => toggleRowExpansion(log.id)}
+                              className="h-8 w-8 p-0"
+                            >
+                              {expandedRows.has(log.id) ? "−" : "+"}
+                            </Button>
+                          )}
+                      </td>
+                    </tr>
+
+                    {/* Expanded row showing prompt details */}
+                    {expandedRows.has(log.id) && (log as any).promptResults && (
+                      <tr className="bg-gray-50 dark:bg-gray-800">
+                        <td colSpan={9} className="py-4 px-4">
+                          <div className="bg-white dark:bg-gray-900 rounded-lg p-4 shadow-sm">
+                            <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-3">
+                              Individual Prompt Results (
+                              {(log as any).promptResults.length} prompts)
+                            </h4>
+                            <div className="grid gap-3 max-h-96 overflow-y-auto">
+                              {(log as any).promptResults.map(
+                                (prompt: any, promptIndex: number) => {
+                                  return (
+                                    <div
+                                      key={`${prompt.promptId}-${promptIndex}`}
+                                      className="border border-gray-200 dark:border-gray-700 rounded-lg p-3"
+                                    >
+                                      <div className="flex items-start justify-between mb-2">
+                                        <div className="flex-1">
+                                          <div className="flex items-center gap-2 mb-1">
+                                            <span className="text-xs font-mono bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded">
+                                              {prompt.promptId}
+                                            </span>
+                                            <span
+                                              className={`text-xs px-2 py-1 rounded ${getStatusColor(
+                                                prompt.status
+                                              )}`}
+                                            >
+                                              {prompt.status}
+                                            </span>
+                                            {prompt.mentionPosition > 0 && (
+                                              <span className="text-xs bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300 px-2 py-1 rounded">
+                                                Mentioned at position{" "}
+                                                {prompt.mentionPosition}
+                                              </span>
+                                            )}
+                                          </div>
+                                          <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
+                                            {prompt.promptText}
+                                          </p>
+                                          <p className="text-xs text-gray-500 dark:text-gray-500 line-clamp-2">
+                                            {prompt.response}
+                                          </p>
+                                        </div>
+                                        <div className="text-right ml-4">
+                                          <div className="text-sm font-medium text-gray-900 dark:text-white">
+                                            Score: {Math.round(prompt.score)}%
+                                          </div>
+                                          <div className="text-sm font-medium text-blue-600 dark:text-blue-400">
+                                            Weighted:{" "}
+                                            {Math.round(prompt.weightedScore)}%
+                                          </div>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  );
+                                }
+                              )}
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </React.Fragment>
                 ))}
               </tbody>
             </table>

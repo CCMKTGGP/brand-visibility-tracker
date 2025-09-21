@@ -2,11 +2,9 @@ import { NextResponse } from "next/server";
 import connect from "@/lib/db";
 import { Types } from "mongoose";
 import Brand from "@/lib/models/brand";
-import BrandAnalysis from "@/lib/models/brandAnalysis";
-import BrandMetrics from "@/lib/models/brandMetrics";
+import MultiPromptAnalysis from "@/lib/models/multiPromptAnalysis";
 import { authMiddleware } from "@/middlewares/apis/authMiddleware";
 import { Membership } from "@/lib/models/membership";
-import User from "@/lib/models/user";
 import { AIService } from "@/lib/services/aiService";
 import { z } from "zod";
 import { RouteParams, BrandParams } from "@/types/api";
@@ -30,7 +28,7 @@ const LogsQuerySchema = z.object({
     .default("all"),
   search: z.string().optional().default(""),
   sortBy: z
-    .enum(["createdAt", "score", "response_time"])
+    .enum(["createdAt", "overallScore", "weightedScore", "successRate"])
     .optional()
     .default("createdAt"),
   sortOrder: z.enum(["asc", "desc"]).optional().default("desc"),
@@ -38,9 +36,8 @@ const LogsQuerySchema = z.object({
 
 const TriggerAnalysisSchema = z.object({
   userId: z.string().min(1, "User ID is required"),
-  model: z.enum(["ChatGPT", "Claude", "Gemini"]).optional(),
-  stage: z.enum(["TOFU", "MOFU", "BOFU", "EVFU"]).optional(),
-  prompt: z.string().min(1, "Prompt is required").optional(),
+  models: z.array(z.enum(["ChatGPT", "Claude", "Gemini"])).optional(),
+  stages: z.array(z.enum(["TOFU", "MOFU", "BOFU", "EVFU"])).optional(),
 });
 
 // Helper function to update daily metrics
@@ -51,8 +48,8 @@ async function updateDailyMetrics(brandId: string) {
   const tomorrow = new Date(today);
   tomorrow.setDate(tomorrow.getDate() + 1);
 
-  // Get today's analysis data
-  const todaysAnalyses = await BrandAnalysis.find({
+  // Get today's multi-prompt analysis data
+  const todaysAnalyses = await MultiPromptAnalysis.find({
     brand_id: brandId,
     createdAt: { $gte: today, $lt: tomorrow },
     status: "success",
@@ -60,18 +57,22 @@ async function updateDailyMetrics(brandId: string) {
 
   if (todaysAnalyses.length === 0) return;
 
-  // Calculate aggregated metrics
-  const totalPrompts = todaysAnalyses.length;
+  // Calculate aggregated metrics using weighted scores
+  const totalAnalyses = todaysAnalyses.length;
   const avgScore =
-    todaysAnalyses.reduce((sum, item) => sum + item.score, 0) / totalPrompts;
+    todaysAnalyses.reduce((sum, item) => sum + item.overall_score, 0) /
+    totalAnalyses;
+  const avgWeightedScore =
+    todaysAnalyses.reduce((sum, item) => sum + item.weighted_score, 0) /
+    totalAnalyses;
   const avgResponseTime =
-    todaysAnalyses.reduce((sum, item) => sum + item.response_time, 0) /
-    totalPrompts;
+    todaysAnalyses.reduce((sum, item) => sum + item.total_response_time, 0) /
+    totalAnalyses;
   const successRate =
     todaysAnalyses.reduce((sum, item) => sum + item.success_rate, 0) /
-    totalPrompts;
+    totalAnalyses;
 
-  // Calculate model breakdown
+  // Calculate model breakdown using weighted scores
   const modelBreakdown = {
     ChatGPT: { score: 0, prompts: 0, avgResponseTime: 0, successRate: 0 },
     Claude: { score: 0, prompts: 0, avgResponseTime: 0, successRate: 0 },
@@ -80,9 +81,9 @@ async function updateDailyMetrics(brandId: string) {
 
   todaysAnalyses.forEach((analysis) => {
     const model = analysis.model as keyof typeof modelBreakdown;
-    modelBreakdown[model].score += analysis.score;
+    modelBreakdown[model].score += analysis.weighted_score; // Use weighted score
     modelBreakdown[model].prompts += 1;
-    modelBreakdown[model].avgResponseTime += analysis.response_time;
+    modelBreakdown[model].avgResponseTime += analysis.total_response_time;
     modelBreakdown[model].successRate += analysis.success_rate;
   });
 
@@ -105,7 +106,7 @@ async function updateDailyMetrics(brandId: string) {
 
   todaysAnalyses.forEach((analysis) => {
     const stage = analysis.stage as keyof typeof stageBreakdown;
-    stageBreakdown[stage] += analysis.score;
+    stageBreakdown[stage] += analysis.weighted_score; // Use weighted score
     stageCounts[stage] += 1;
   });
 
@@ -124,59 +125,32 @@ async function updateDailyMetrics(brandId: string) {
     strongly_positive: 0,
   };
   todaysAnalyses.forEach((analysis) => {
-    sentimentBreakdown.positive += analysis.sentiment.distribution.positive;
-    sentimentBreakdown.neutral += analysis.sentiment.distribution.neutral;
-    sentimentBreakdown.negative += analysis.sentiment.distribution.negative;
+    sentimentBreakdown.positive +=
+      analysis.aggregated_sentiment.distribution.positive;
+    sentimentBreakdown.neutral +=
+      analysis.aggregated_sentiment.distribution.neutral;
+    sentimentBreakdown.negative +=
+      analysis.aggregated_sentiment.distribution.negative;
     sentimentBreakdown.strongly_positive +=
-      analysis.sentiment.distribution.strongly_positive;
+      analysis.aggregated_sentiment.distribution.strongly_positive;
   });
 
   // Calculate averages
   Object.keys(sentimentBreakdown).forEach((key) => {
     const sentimentKey = key as keyof typeof sentimentBreakdown;
     sentimentBreakdown[sentimentKey] =
-      sentimentBreakdown[sentimentKey] / totalPrompts;
+      sentimentBreakdown[sentimentKey] / totalAnalyses;
   });
 
-  // Upsert the daily metrics
-  await BrandMetrics.findOneAndUpdate(
-    {
-      brand_id: brandId,
-      date: today,
-      period: "daily",
-    },
-    {
-      aggregated_data: {
-        total_prompts: totalPrompts,
-        avg_score: avgScore,
-        avg_response_time: avgResponseTime,
-        success_rate: successRate,
-        model_breakdown: {
-          ChatGPT: {
-            score: modelBreakdown.ChatGPT.score,
-            prompts: modelBreakdown.ChatGPT.prompts,
-            avg_response_time: modelBreakdown.ChatGPT.avgResponseTime,
-            success_rate: modelBreakdown.ChatGPT.successRate,
-          },
-          Claude: {
-            score: modelBreakdown.Claude.score,
-            prompts: modelBreakdown.Claude.prompts,
-            avg_response_time: modelBreakdown.Claude.avgResponseTime,
-            success_rate: modelBreakdown.Claude.successRate,
-          },
-          Gemini: {
-            score: modelBreakdown.Gemini.score,
-            prompts: modelBreakdown.Gemini.prompts,
-            avg_response_time: modelBreakdown.Gemini.avgResponseTime,
-            success_rate: modelBreakdown.Gemini.successRate,
-          },
-        },
-        stage_breakdown: stageBreakdown,
-        sentiment_breakdown: sentimentBreakdown,
-      },
-    },
-    { upsert: true, new: true }
-  );
+  // Note: Daily metrics aggregation removed - using MultiPromptAnalysis directly
+  console.log(`Updated daily metrics for brand ${brandId}:`, {
+    totalAnalyses,
+    avgWeightedScore,
+    avgResponseTime,
+    successRate,
+    modelBreakdown,
+    stageBreakdown,
+  });
 }
 
 // Brand analysis logs API
@@ -285,50 +259,83 @@ export const GET = async (
       filter.status = status;
     }
 
-    // Add search functionality (search in prompt and response)
+    // Add search functionality (search in prompt results)
     if (search) {
       filter.$or = [
-        { prompt: { $regex: search, $options: "i" } },
-        { response: { $regex: search, $options: "i" } },
+        { "prompt_results.prompt_text": { $regex: search, $options: "i" } },
+        { "prompt_results.response": { $regex: search, $options: "i" } },
       ];
+    }
+
+    // Build sort options for multi-prompt analysis
+    const sortOptions: any = {};
+    if (sortBy === "createdAt") {
+      sortOptions.createdAt = sortOrder === "asc" ? 1 : -1;
+    } else if (sortBy === "overallScore") {
+      sortOptions.overall_score = sortOrder === "asc" ? 1 : -1;
+    } else if (sortBy === "weightedScore") {
+      sortOptions.weighted_score = sortOrder === "asc" ? 1 : -1;
+    } else if (sortBy === "successRate") {
+      sortOptions.success_rate = sortOrder === "asc" ? 1 : -1;
     }
 
     // Get logs with pagination
     const [logs, totalCount] = await Promise.all([
-      BrandAnalysis.find(filter)
+      MultiPromptAnalysis.find(filter)
         .populate({
           path: "metadata.user_id",
           select: "full_name email",
         })
+        .sort(sortOptions)
         .skip(skip)
         .limit(limitNum)
         .lean(),
-      BrandAnalysis.countDocuments(filter),
+      MultiPromptAnalysis.countDocuments(filter),
     ]);
 
-    // Transform logs to match frontend expectations
+    // Transform logs to match frontend expectations for multi-prompt analysis
     const transformedLogs = logs.map((log) => ({
       id: (log._id as any)?.toString?.() ?? "",
       timestamp:
         log.createdAt instanceof Date ? log.createdAt.toISOString() : "",
       model: log.model,
       stage: log.stage,
-      prompt: log.prompt,
-      response: log.response,
-      score: log.score,
-      responseTime: log.response_time,
+      score: log.overall_score,
+      weightedScore: log.weighted_score,
+      responseTime: log.total_response_time,
       successRate: log.success_rate,
       status: log.status,
       sentiment: {
-        overall: log.sentiment.overall,
-        confidence: log.sentiment.confidence,
+        overall: log.aggregated_sentiment.overall,
+        confidence: log.aggregated_sentiment.confidence,
         distribution: {
-          positive: log.sentiment.distribution.positive,
-          neutral: log.sentiment.distribution.neutral,
-          negative: log.sentiment.distribution.negative,
-          stronglyPositive: log.sentiment.distribution.strongly_positive,
+          positive: log.aggregated_sentiment.distribution.positive,
+          neutral: log.aggregated_sentiment.distribution.neutral,
+          negative: log.aggregated_sentiment.distribution.negative,
+          stronglyPositive:
+            log.aggregated_sentiment.distribution.strongly_positive,
         },
       },
+      promptResults: log.prompt_results.map((result: any) => ({
+        promptId: result.prompt_id,
+        promptText: result.prompt_text,
+        score: result.score,
+        weightedScore: result.weighted_score,
+        mentionPosition: result.mention_position,
+        response: result.response,
+        responseTime: result.response_time,
+        sentiment: {
+          overall: result.sentiment.overall,
+          confidence: result.sentiment.confidence,
+          distribution: {
+            positive: result.sentiment.distribution.positive,
+            neutral: result.sentiment.distribution.neutral,
+            negative: result.sentiment.distribution.negative,
+            stronglyPositive: result.sentiment.distribution.strongly_positive,
+          },
+        },
+        status: result.status,
+      })),
       metadata: {
         userId:
           log.metadata.user_id._id?.toString() ||
@@ -337,15 +344,17 @@ export const GET = async (
         userEmail: log.metadata.user_id.email || "",
         triggerType: log.metadata.trigger_type,
         version: log.metadata.version,
+        totalPrompts: log.metadata.total_prompts,
+        successfulPrompts: log.metadata.successful_prompts,
       },
     }));
 
     // Get filter options
     const [availableModels, availableStages, availableStatuses] =
       await Promise.all([
-        BrandAnalysis.distinct("model", { brand_id: brandId }),
-        BrandAnalysis.distinct("stage", { brand_id: brandId }),
-        BrandAnalysis.distinct("status", { brand_id: brandId }),
+        MultiPromptAnalysis.distinct("model", { brand_id: brandId }),
+        MultiPromptAnalysis.distinct("stage", { brand_id: brandId }),
+        MultiPromptAnalysis.distinct("status", { brand_id: brandId }),
       ]);
 
     // Calculate pagination info
@@ -373,7 +382,12 @@ export const GET = async (
         availableModels: ["all", ...availableModels],
         availableStages: ["all", ...availableStages],
         availableStatuses: ["all", ...availableStatuses],
-        availableSortBy: ["createdAt", "score", "response_time"],
+        availableSortBy: [
+          "createdAt",
+          "overallScore",
+          "weightedScore",
+          "successRate",
+        ],
         availableSortOrder: ["asc", "desc"],
       },
       summary: {
@@ -453,7 +467,7 @@ export const POST = async (
       });
     }
 
-    const { userId, model, stage, prompt } = parse.data;
+    const { userId, models, stages } = parse.data;
 
     // Check user permissions (owner or member with appropriate role)
     const membership = await Membership.findOne({
@@ -475,115 +489,193 @@ export const POST = async (
       );
     }
 
+    // Default to all models and stages if not specified
+    const modelsToAnalyze: AIModel[] = models || [
+      "ChatGPT",
+      "Claude",
+      "Gemini",
+    ];
+    const stagesToAnalyze: AnalysisStage[] = stages || [
+      "TOFU",
+      "MOFU",
+      "BOFU",
+      "EVFU",
+    ];
+
     try {
-      // Determine which models and stages to analyze
-      const modelsToAnalyze: AIModel[] = model
-        ? [model]
-        : ["ChatGPT", "Claude", "Gemini"];
-      const stagesToAnalyze: AnalysisStage[] = stage
-        ? [stage]
-        : ["TOFU", "MOFU", "BOFU", "EVFU"];
+      // Start the comprehensive multi-prompt analysis
+      console.log(
+        `Starting comprehensive multi-prompt analysis for brand ${brand.name}`
+      );
+
+      const analysisStartTime = Date.now();
+      const comprehensiveResults =
+        await AIService.comprehensiveMultiPromptAnalysis(
+          brand,
+          modelsToAnalyze,
+          stagesToAnalyze
+        );
 
       const analysisResults = [];
 
-      // Perform AI analysis for each model and stage combination
-      for (const currentModel of modelsToAnalyze) {
-        for (const currentStage of stagesToAnalyze) {
-          try {
-            const analysisResult = await AIService.analyzeBrand(
-              brand,
-              currentModel,
-              currentStage,
-              prompt
-            );
+      // Validate and save each result to the database
+      for (const { model, stage, result } of comprehensiveResults) {
+        try {
+          // Validate result data before saving
+          if (
+            !result ||
+            typeof result.overallScore !== "number" ||
+            typeof result.weightedScore !== "number"
+          ) {
+            console.error(`Invalid result data for ${model}-${stage}:`, result);
+            continue;
+          }
 
-            // Store the analysis result in the database
-            const brandAnalysis = new BrandAnalysis({
-              brand_id: brandId,
-              model: currentModel,
-              stage: currentStage,
-              score: analysisResult.score,
-              prompt: prompt || `Brand analysis for ${currentStage} stage`,
-              response: analysisResult.response,
-              response_time: analysisResult.responseTime,
-              success_rate: analysisResult.successRate,
+          const multiPromptAnalysis = new MultiPromptAnalysis({
+            brand_id: brandId,
+            model,
+            stage,
+            overall_score: result.overallScore,
+            weighted_score: result.weightedScore,
+            total_response_time: result.totalResponseTime,
+            success_rate: result.successRate,
+            aggregated_sentiment: {
+              overall: result.aggregatedSentiment.overall,
+              confidence: Math.round(
+                result.aggregatedSentiment.confidence / 100
+              ),
+              distribution: {
+                positive: result.aggregatedSentiment.distribution.positive,
+                neutral: result.aggregatedSentiment.distribution.neutral,
+                negative: result.aggregatedSentiment.distribution.negative,
+                strongly_positive:
+                  result.aggregatedSentiment.distribution.strongly_positive,
+              },
+            },
+            prompt_results: result.promptResults.map((prompt) => ({
+              prompt_id: prompt.promptId,
+              prompt_text: prompt.promptText,
+              score: prompt.score,
+              weighted_score: prompt.weightedScore,
+              mention_position: prompt.mentionPosition,
+              response: prompt.response,
+              response_time: prompt.responseTime,
               sentiment: {
-                overall: analysisResult.sentiment.overall,
-                confidence: analysisResult.sentiment.confidence,
+                overall: prompt.sentiment.overall,
+                confidence: prompt.sentiment.confidence,
                 distribution: {
-                  positive: analysisResult.sentiment.distribution.positive,
-                  neutral: analysisResult.sentiment.distribution.neutral,
-                  negative: analysisResult.sentiment.distribution.negative,
+                  positive: prompt.sentiment.distribution.positive,
+                  neutral: prompt.sentiment.distribution.neutral,
+                  negative: prompt.sentiment.distribution.negative,
                   strongly_positive:
-                    analysisResult.sentiment.distribution.strongly_positive,
+                    prompt.sentiment.distribution.strongly_positive,
                 },
               },
-              metadata: {
-                user_id: userId,
-                trigger_type: "manual",
-                version: "1.0",
-              },
-              status: analysisResult.status,
-            });
+              status: prompt.status,
+            })),
+            metadata: {
+              user_id: userId,
+              trigger_type: "manual",
+              version: "1.0",
+              total_prompts: result.promptResults.length,
+              successful_prompts: result.promptResults.filter(
+                (p) => p.status === "success"
+              ).length,
+            },
+            status:
+              result.successRate > 50
+                ? "success"
+                : result.successRate > 0
+                ? "warning"
+                : "error",
+          });
 
-            const savedAnalysis = await brandAnalysis.save();
-            analysisResults.push({
-              id: savedAnalysis._id.toString(),
-              model: currentModel,
-              stage: currentStage,
-              score: analysisResult.score,
-              status: analysisResult.status,
-            });
+          const savedAnalysis = await multiPromptAnalysis.save();
 
-            // Small delay between requests to avoid overwhelming APIs
-            await new Promise((resolve) => setTimeout(resolve, 100));
-          } catch (error) {
-            console.error(
-              `Analysis failed for ${currentModel}-${currentStage}:`,
-              error
-            );
-            analysisResults.push({
-              id: null,
-              model: currentModel,
-              stage: currentStage,
-              score: 0,
-              status: "error",
-              error: error instanceof Error ? error.message : "Unknown error",
-            });
+          // Verify the data was saved correctly
+          if (!savedAnalysis._id) {
+            throw new Error(`Failed to save analysis for ${model}-${stage}`);
           }
+
+          analysisResults.push({
+            model,
+            stage,
+            result: {
+              analysisId: savedAnalysis._id.toString(),
+              overallScore: result.overallScore,
+              weightedScore: result.weightedScore,
+              totalResponseTime: result.totalResponseTime,
+              successRate: result.successRate,
+              aggregatedSentiment: result.aggregatedSentiment,
+              promptResults: result.promptResults.map((p) => ({
+                promptId: p.promptId,
+                promptText: p.promptText,
+                score: p.score,
+                weightedScore: p.weightedScore,
+                mentionPosition: p.mentionPosition,
+                response: p.response,
+                responseTime: p.responseTime,
+                sentiment: p.sentiment,
+                status: p.status,
+              })),
+            },
+          });
+        } catch (saveError) {
+          console.error(
+            `Error saving analysis for ${model}-${stage}:`,
+            saveError
+          );
         }
       }
 
-      // Update daily metrics (simple aggregation)
-      try {
-        await updateDailyMetrics(brandId);
-      } catch (error) {
-        console.warn("Failed to update daily metrics:", error);
-      }
+      const totalAnalysisTime = Date.now() - analysisStartTime;
+
+      // Calculate summary statistics
+      const totalAnalyses = analysisResults.length;
+      const avgScore =
+        analysisResults.length > 0
+          ? analysisResults.reduce((sum, r) => sum + r.result.overallScore, 0) /
+            analysisResults.length
+          : 0;
+      const avgWeightedScore =
+        analysisResults.length > 0
+          ? analysisResults.reduce(
+              (sum, r) => sum + r.result.weightedScore,
+              0
+            ) / analysisResults.length
+          : 0;
 
       return new NextResponse(
         JSON.stringify({
-          message: "Analysis completed successfully!",
+          success: true,
+          message: "Multi-prompt analysis completed successfully",
           data: {
-            analysisResults,
-            totalAnalyses: analysisResults.length,
-            successfulAnalyses: analysisResults.filter(
-              (r) => r.status === "success"
-            ).length,
-            brandId,
-            triggerType: "manual",
-            triggeredBy: userId,
-            completedAt: new Date().toISOString(),
+            analysisId: `multi-${brandId}-${Date.now()}`,
+            results: analysisResults,
+            summary: {
+              totalAnalyses,
+              averageScore: Math.round(avgScore * 100) / 100,
+              averageWeightedScore: Math.round(avgWeightedScore * 100) / 100,
+              estimatedCompletionTime: totalAnalysisTime,
+            },
           },
         }),
-        { status: 200 }
+        {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }
       );
-    } catch (error) {
-      console.error("Analysis processing error:", error);
+    } catch (analysisError) {
+      console.error("Comprehensive analysis error:", analysisError);
+
       return new NextResponse(
         JSON.stringify({
-          message: "Analysis failed to complete",
-          error: error instanceof Error ? error.message : "Unknown error",
+          success: false,
+          message: "Analysis failed",
+          error:
+            analysisError instanceof Error
+              ? analysisError.message
+              : "Unknown error",
         }),
         { status: 500 }
       );

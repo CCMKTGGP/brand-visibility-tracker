@@ -217,17 +217,31 @@ const DashboardPage = ({
     scores,
   }) => {
     const stages = ["TOFU", "MOFU", "BOFU", "EVFU"] as const;
+    const stageLabels = {
+      TOFU: "Top of Funnel",
+      MOFU: "Middle of Funnel",
+      BOFU: "Bottom of Funnel",
+      EVFU: "Extended Value Funnel",
+    };
 
     return (
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-6">
-          Funnel Performance
-        </h3>
+        <div className="flex items-center justify-between mb-6">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+            Funnel Performance
+          </h3>
+          <span className="text-xs text-gray-500 dark:text-gray-400 px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded">
+            Weighted Scores
+          </span>
+        </div>
         <div className="space-y-4">
           {stages.map((stage, index) => (
             <div key={stage} className="flex items-center">
-              <div className="w-16 text-sm font-medium text-gray-600 dark:text-gray-400">
-                {stage}
+              <div className="w-20 text-sm font-medium text-gray-600 dark:text-gray-400">
+                <div>{stage}</div>
+                <div className="text-xs text-gray-500">
+                  {stageLabels[stage]}
+                </div>
               </div>
               <div className="flex-1 mx-4">
                 <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3">
@@ -248,6 +262,11 @@ const DashboardPage = ({
               </div>
             </div>
           ))}
+        </div>
+        <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+          <p className="text-xs text-gray-500 dark:text-gray-400">
+            Based on multi-prompt analysis with position-based weighting
+          </p>
         </div>
       </div>
     );
@@ -346,16 +365,21 @@ const DashboardPage = ({
                     {model}
                   </div>
                   <div className="text-sm text-gray-500 dark:text-gray-400">
-                    {data.prompts} prompts
+                    {data.prompts} analyses
                   </div>
                 </div>
               </div>
-              <div
-                className={`text-lg font-semibold ${getScoreTextColor(
-                  data.score
-                )}`}
-              >
-                {data.score}%
+              <div className="text-right">
+                <div
+                  className={`text-lg font-semibold ${getScoreTextColor(
+                    data.score
+                  )}`}
+                >
+                  {data.score}%
+                </div>
+                <div className="text-xs text-gray-500 dark:text-gray-400">
+                  Weighted Score
+                </div>
               </div>
             </div>
           )
@@ -558,37 +582,50 @@ const DashboardPage = ({
       {/* Key Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <MetricCard
-          title="Total Prompts"
-          value={selectedBrand.metrics.totalPrompts}
+          title="Total Analyses"
+          value={
+            (dashboardData.currentPeriodMetrics as any).totalAnalyses ||
+            dashboardData.currentPeriodMetrics.totalPrompts
+          }
+          subtitle={`${
+            (dashboardData.currentPeriodMetrics as any).totalPrompts || "N/A"
+          } prompts processed`}
           icon={<BarChart3 className="w-5 h-5 text-primary" />}
-          trend={{ value: 12, isPositive: true }}
         />
         <MetricCard
-          title="Success Rate"
-          value={`${selectedBrand.metrics.successRate}%`}
-          icon={<Target className="w-5 h-5 text-primary" />}
-          trend={{ value: 3, isPositive: true }}
-        />
-        <MetricCard
-          title="Avg Response Time"
-          value={`${selectedBrand.metrics.avgResponseTime}s`}
-          icon={<Activity className="w-5 h-5 text-primary" />}
-          trend={{ value: 8, isPositive: false }}
-        />
-        <MetricCard
-          title="Overall Score"
+          title="Weighted Score"
           value={`${Math.round(
-            (selectedBrand.scores.TOFU +
-              selectedBrand.scores.MOFU +
-              selectedBrand.scores.BOFU +
-              selectedBrand.scores.EVFU) /
-              4
+            (dashboardData.currentPeriodMetrics as any).avgWeightedScore ||
+              (selectedBrand.metrics as any).avgScore ||
+              0
           )}%`}
+          subtitle="Position-weighted metric"
           icon={<TrendingUp className="w-5 h-5 text-primary" />}
           trend={{
             value: selectedBrand.sentiment.percentage,
             isPositive: selectedBrand.sentiment.trend === "up",
           }}
+        />
+        <MetricCard
+          title="Overall Score"
+          value={`${Math.round(
+            (dashboardData.currentPeriodMetrics as any).avgOverallScore ||
+              (selectedBrand.metrics as any).avgScore ||
+              0
+          )}%`}
+          subtitle="Average across all prompts"
+          icon={<Target className="w-5 h-5 text-primary" />}
+        />
+        <MetricCard
+          title="Success Rate"
+          value={`${selectedBrand.metrics.successRate}%`}
+          icon={<Activity className="w-5 h-5 text-primary" />}
+        />
+        <MetricCard
+          title="Response Time"
+          value={`${Math.round(selectedBrand.metrics.avgResponseTime / 1000)}s`}
+          subtitle="Average processing time"
+          icon={<Activity className="w-5 h-5 text-primary" />}
         />
       </div>
 

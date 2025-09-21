@@ -96,84 +96,7 @@ export interface LogEntry {
   status: "success" | "error" | "warning";
   userId: string;
 }
-// Brand Analysis Database Model (camelCase for types folder)
-export interface IBrandAnalysis {
-  _id: Types.ObjectId;
-  brandId: Types.ObjectId;
-  model: AIModel;
-  stage: AnalysisStage;
-  score: number;
-  prompt: string;
-  response: string;
-  responseTime: number;
-  successRate: number;
-  sentiment: {
-    overall: "positive" | "neutral" | "negative";
-    confidence: number;
-    distribution: {
-      positive: number;
-      neutral: number;
-      negative: number;
-      stronglyPositive: number;
-    };
-  };
-  metadata: {
-    userId: Types.ObjectId;
-    triggerType: "manual" | "scheduled" | "webhook";
-    version: string;
-  };
-  status: "success" | "error" | "warning";
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-// Brand Metrics Database Model (camelCase for types folder)
-export interface IBrandMetrics {
-  _id: Types.ObjectId;
-  brandId: Types.ObjectId;
-  date: Date;
-  period: "daily" | "weekly" | "monthly";
-  aggregatedData: {
-    totalPrompts: number;
-    avgScore: number;
-    avgResponseTime: number;
-    successRate: number;
-    modelBreakdown: {
-      ChatGPT: {
-        score: number;
-        prompts: number;
-        avgResponseTime: number;
-        successRate: number;
-      };
-      Claude: {
-        score: number;
-        prompts: number;
-        avgResponseTime: number;
-        successRate: number;
-      };
-      Gemini: {
-        score: number;
-        prompts: number;
-        avgResponseTime: number;
-        successRate: number;
-      };
-    };
-    stageBreakdown: {
-      TOFU: number;
-      MOFU: number;
-      BOFU: number;
-      EVFU: number;
-    };
-    sentimentBreakdown: {
-      positive: number;
-      neutral: number;
-      negative: number;
-      stronglyPositive: number;
-    };
-  };
-  createdAt: Date;
-  updatedAt: Date;
-}
+// Legacy interfaces removed - using MultiPromptAnalysis only
 
 // API Response Types
 export interface DashboardResponse {
@@ -312,5 +235,207 @@ export interface LogEntryDetailed extends LogEntry {
     userEmail: string;
     triggerType: "manual" | "scheduled" | "webhook";
     version: string;
+  };
+}
+
+// Multi-Prompt Analysis Types (camelCase for types folder)
+export interface MultiPromptAnalysisResult {
+  id: string;
+  brandId: string;
+  model: AIModel;
+  stage: AnalysisStage;
+  overallScore: number;
+  weightedScore: number;
+  totalResponseTime: number;
+  successRate: number;
+  aggregatedSentiment: {
+    overall: "positive" | "neutral" | "negative";
+    confidence: number;
+    distribution: {
+      positive: number;
+      neutral: number;
+      negative: number;
+      stronglyPositive: number;
+    };
+  };
+  promptResults: Array<{
+    promptId: string;
+    promptText: string;
+    score: number;
+    weightedScore: number;
+    mentionPosition: number;
+    response: string;
+    responseTime: number;
+    sentiment: {
+      overall: "positive" | "neutral" | "negative";
+      confidence: number;
+      distribution: {
+        positive: number;
+        neutral: number;
+        negative: number;
+        stronglyPositive: number;
+      };
+    };
+    status: "success" | "error" | "warning";
+  }>;
+  metadata: {
+    userId: string;
+    triggerType: "manual" | "scheduled" | "webhook";
+    version: string;
+    totalPrompts: number;
+    successfulPrompts: number;
+  };
+  status: "success" | "error" | "warning";
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface IMultiPromptAnalysis {
+  _id: Types.ObjectId;
+  brandId: Types.ObjectId;
+  model: AIModel;
+  stage: AnalysisStage;
+  overallScore: number;
+  weightedScore: number;
+  totalResponseTime: number;
+  successRate: number;
+  aggregatedSentiment: {
+    overall: "positive" | "neutral" | "negative";
+    confidence: number;
+    distribution: {
+      positive: number;
+      neutral: number;
+      negative: number;
+      stronglyPositive: number;
+    };
+  };
+  promptResults: Array<{
+    promptId: string;
+    promptText: string;
+    score: number;
+    weightedScore: number;
+    mentionPosition: number;
+    response: string;
+    responseTime: number;
+    sentiment: {
+      overall: "positive" | "neutral" | "negative";
+      confidence: number;
+      distribution: {
+        positive: number;
+        neutral: number;
+        negative: number;
+        stronglyPositive: number;
+      };
+    };
+    status: "success" | "error" | "warning";
+  }>;
+  metadata: {
+    userId: Types.ObjectId;
+    triggerType: "manual" | "scheduled" | "webhook";
+    version: string;
+    totalPrompts: number;
+    successfulPrompts: number;
+  };
+  status: "success" | "error" | "warning";
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+// Funnel Stage Performance Analysis
+export interface FunnelStagePerformance {
+  stage: AnalysisStage;
+  averageScore: number;
+  averageWeightedScore: number;
+  totalAnalyses: number;
+  bestPerformingModel: {
+    model: AIModel;
+    score: number;
+    weightedScore: number;
+  } | null;
+  worstPerformingModel: {
+    model: AIModel;
+    score: number;
+    weightedScore: number;
+  } | null;
+  sentimentTrend: {
+    overall: "positive" | "neutral" | "negative";
+    distribution: {
+      positive: number;
+      neutral: number;
+      negative: number;
+      stronglyPositive: number;
+    };
+  };
+  topPrompts: Array<{
+    promptId: string;
+    averageScore: number;
+    averageWeightedScore: number;
+    totalMentions: number;
+  }>;
+}
+
+// Comprehensive Brand Performance Summary
+export interface BrandPerformanceSummary {
+  brandId: string;
+  brandName: string;
+  overallWeightedScore: number;
+  funnelStagePerformance: FunnelStagePerformance[];
+  modelComparison: Array<{
+    model: AIModel;
+    averageScore: number;
+    averageWeightedScore: number;
+    stageBreakdown: Record<AnalysisStage, number>;
+  }>;
+  timePeriodAnalysis: {
+    period: string;
+    scoreProgress: Array<{
+      date: string;
+      score: number;
+      weightedScore: number;
+    }>;
+  };
+  recommendations: Array<{
+    stage: AnalysisStage;
+    priority: "high" | "medium" | "low";
+    issue: string;
+    recommendation: string;
+  }>;
+}
+
+// API Request/Response Types
+export interface MultiPromptAnalysisRequest {
+  userId: string;
+  models?: AIModel[];
+  stages?: AnalysisStage[];
+}
+
+export interface MultiPromptAnalysisResponse {
+  success: boolean;
+  message: string;
+  data: {
+    analysisId: string;
+    results: Array<{
+      model: AIModel;
+      stage: AnalysisStage;
+      result: {
+        overallScore: number;
+        weightedScore: number;
+        promptResults: Array<{
+          promptId: string;
+          score: number;
+          weightedScore: number;
+          mentionPosition: number;
+          status: "success" | "error" | "warning";
+        }>;
+        totalResponseTime: number;
+        successRate: number;
+      };
+    }>;
+    summary: {
+      totalAnalyses: number;
+      averageScore: number;
+      averageWeightedScore: number;
+      estimatedCompletionTime: number;
+    };
   };
 }

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import connect from "@/lib/db";
 import { Types } from "mongoose";
 import Brand from "@/lib/models/brand";
-import BrandAnalysis from "@/lib/models/brandAnalysis";
+import MultiPromptAnalysis from "@/lib/models/multiPromptAnalysis";
 import { authMiddleware } from "@/middlewares/apis/authMiddleware";
 import { Membership } from "@/lib/models/membership";
 import { RouteParams } from "@/types/api";
@@ -94,8 +94,8 @@ export const GET = async (
       );
     }
 
-    // Get the specific log entry
-    const log = await BrandAnalysis.findOne({
+    // Get the specific log entry from MultiPromptAnalysis
+    const log = await MultiPromptAnalysis.findOne({
       _id: logId,
       brand_id: brandId,
     })
@@ -112,7 +112,7 @@ export const GET = async (
       );
     }
 
-    // Transform log to match frontend expectations
+    // Transform log to match frontend expectations (MultiPromptAnalysis format)
     const logData = log as any; // Type assertion for complex nested structure
     const transformedLog = {
       id: logData._id.toString(),
@@ -120,22 +120,23 @@ export const GET = async (
       updatedAt: logData.updatedAt.toISOString(),
       model: logData.model,
       stage: logData.stage,
-      prompt: logData.prompt,
-      response: logData.response,
-      score: logData.score,
-      responseTime: logData.response_time,
+      overallScore: logData.overall_score,
+      weightedScore: logData.weighted_score,
+      totalResponseTime: logData.total_response_time,
       successRate: logData.success_rate,
       status: logData.status,
-      sentiment: {
-        overall: logData.sentiment.overall,
-        confidence: logData.sentiment.confidence,
+      aggregatedSentiment: {
+        overall: logData.aggregated_sentiment.overall,
+        confidence: logData.aggregated_sentiment.confidence,
         distribution: {
-          positive: logData.sentiment.distribution.positive,
-          neutral: logData.sentiment.distribution.neutral,
-          negative: logData.sentiment.distribution.negative,
-          stronglyPositive: logData.sentiment.distribution.strongly_positive,
+          positive: logData.aggregated_sentiment.distribution.positive,
+          neutral: logData.aggregated_sentiment.distribution.neutral,
+          negative: logData.aggregated_sentiment.distribution.negative,
+          stronglyPositive:
+            logData.aggregated_sentiment.distribution.strongly_positive,
         },
       },
+      promptResults: logData.prompt_results || [],
       metadata: {
         userId:
           logData.metadata.user_id._id?.toString() ||
@@ -144,6 +145,8 @@ export const GET = async (
         userEmail: logData.metadata.user_id.email || "",
         triggerType: logData.metadata.trigger_type,
         version: logData.metadata.version,
+        totalPrompts: logData.metadata.total_prompts,
+        successfulPrompts: logData.metadata.successful_prompts,
       },
       brand: {
         id: brand._id.toString(),
@@ -252,8 +255,8 @@ export const DELETE = async (
       );
     }
 
-    // Delete the log entry
-    const deletedLog = await BrandAnalysis.findOneAndDelete({
+    // Delete the log entry from MultiPromptAnalysis
+    const deletedLog = await MultiPromptAnalysis.findOneAndDelete({
       _id: logId,
       brand_id: brandId,
     });

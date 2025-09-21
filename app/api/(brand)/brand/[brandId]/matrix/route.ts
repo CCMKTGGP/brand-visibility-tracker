@@ -2,8 +2,7 @@ import { NextResponse } from "next/server";
 import connect from "@/lib/db";
 import { Types, connection } from "mongoose";
 import Brand from "@/lib/models/brand";
-import BrandAnalysis from "@/lib/models/brandAnalysis";
-import BrandMetrics from "@/lib/models/brandMetrics";
+import MultiPromptAnalysis from "@/lib/models/multiPromptAnalysis";
 import { authMiddleware } from "@/middlewares/apis/authMiddleware";
 import { Membership } from "@/lib/models/membership";
 import { z } from "zod";
@@ -130,7 +129,7 @@ export const GET = async (
       analysisFilter.stage = stage;
     }
 
-    // Get aggregated matrix data by model and stage combinations
+    // Get aggregated matrix data by model and stage combinations using multi-prompt analysis
     const matrixAggregation = [
       {
         $match: analysisFilter,
@@ -141,11 +140,14 @@ export const GET = async (
             model: "$model",
             stage: "$stage",
           },
-          avgScore: { $avg: "$score" },
-          totalPrompts: { $sum: 1 },
-          avgResponseTime: { $avg: "$response_time" },
+          avgOverallScore: { $avg: "$overall_score" },
+          avgWeightedScore: { $avg: "$weighted_score" }, // Primary metric
+          totalAnalyses: { $sum: 1 },
+          totalPrompts: { $sum: "$metadata.total_prompts" },
+          avgResponseTime: { $avg: "$total_response_time" },
           avgSuccessRate: { $avg: "$success_rate" },
-          scores: { $push: "$score" },
+          weightedScores: { $push: "$weighted_score" },
+          overallScores: { $push: "$overall_score" },
           latestCreatedAt: { $max: "$createdAt" },
         },
       },
@@ -157,135 +159,56 @@ export const GET = async (
       },
     ];
 
-    // Check if any BrandAnalysis data exists for this brand
-    const totalBrandAnalysisCount = await BrandAnalysis.countDocuments({
-      brand_id: new Types.ObjectId(brandId),
-    });
+    // Check if any MultiPromptAnalysis data exists for this brand
+    const totalMultiPromptAnalysisCount =
+      await MultiPromptAnalysis.countDocuments({
+        brand_id: new Types.ObjectId(brandId),
+      });
 
     const [matrixResults, totalCount] = await Promise.all([
-      BrandAnalysis.aggregate(matrixAggregation as any[]).exec(),
-      BrandAnalysis.countDocuments(analysisFilter),
+      MultiPromptAnalysis.aggregate(matrixAggregation as any[]).exec(),
+      MultiPromptAnalysis.countDocuments(analysisFilter),
     ]);
 
-    // Fallback: If no BrandAnalysis data found, try to use BrandMetrics data
-    if (matrixResults.length === 0 && totalBrandAnalysisCount === 0) {
-      // Check for BrandMetrics data
-      const metricsFilter: any = {
-        brand_id: new Types.ObjectId(brandId),
-        date: { $gte: startDate, $lte: endDate },
+    // If no MultiPromptAnalysis data found, return empty response
+    if (matrixResults.length === 0) {
+      const response = {
+        data: [],
+        pagination: {
+          page: pageNum,
+          limit: limitNum,
+          total: 0,
+          hasMore: false,
+        },
+        summary: {
+          totalAnalyses: 0,
+          totalPrompts: 0,
+          avgWeightedScore: 0,
+          bestPerforming: null,
+          worstPerforming: null,
+        },
+        filters: {
+          period,
+          model,
+          stage,
+          availablePeriods: ["7d", "30d", "90d"],
+          availableModels: ["all", "ChatGPT", "Claude", "Gemini"],
+          availableStages: ["all", "TOFU", "MOFU", "BOFU", "EVFU"],
+          dateRange: {
+            start: startDate.toISOString(),
+            end: endDate.toISOString(),
+          },
+        },
       };
 
-      const brandMetrics = await BrandMetrics.find(metricsFilter)
-        .sort({ date: -1 })
-        .limit(10);
-
-      if (brandMetrics.length > 0) {
-        // Convert BrandMetrics to Matrix format
-        const metricsData = [];
-        const latestMetric = brandMetrics[0];
-
-        // Extract data from aggregated_data.model_breakdown
-        const models = ["ChatGPT", "Claude", "Gemini"] as const;
-        const stages = ["TOFU", "MOFU", "BOFU", "EVFU"] as const;
-
-        for (const modelName of models) {
-          for (const stageName of stages) {
-            const modelData =
-              latestMetric.aggregated_data?.model_breakdown?.[modelName];
-            const stageScore =
-              latestMetric.aggregated_data?.stageBreakdown?.[stageName] ||
-              latestMetric.aggregated_data?.stage_breakdown?.[stageName];
-
-            if (modelData && modelData.prompts > 0) {
-              metricsData.push({
-                model: modelName,
-                stage: stageName,
-                score: Math.round(stageScore || modelData.score || 0),
-                prompts: modelData.prompts || 0,
-                avgResponseTime: modelData.avg_response_time || 0,
-                successRate: Math.round(modelData.success_rate || 0),
-                trend: "neutral" as const,
-                trendPercentage: 0,
-              });
-            }
-          }
-        }
-
-        if (metricsData.length > 0) {
-          const response = {
-            data: metricsData,
-            pagination: {
-              page: pageNum,
-              limit: limitNum,
-              total: metricsData.length,
-              hasMore: false,
-            },
-            summary: {
-              totalAnalyses: metricsData.reduce(
-                (sum, item) => sum + item.prompts,
-                0
-              ),
-              avgScore: Math.round(
-                metricsData.reduce((sum, item) => sum + item.score, 0) /
-                  metricsData.length
-              ),
-              bestPerforming: metricsData.sort((a, b) => b.score - a.score)[0]
-                ? {
-                    model: metricsData.sort((a, b) => b.score - a.score)[0]
-                      .model,
-                    stage: metricsData.sort((a, b) => b.score - a.score)[0]
-                      .stage,
-                    score: metricsData.sort((a, b) => b.score - a.score)[0]
-                      .score,
-                  }
-                : null,
-              worstPerforming: null,
-            },
-            filters: {
-              period,
-              model,
-              stage,
-              availablePeriods: ["7d", "30d", "90d"],
-              availableModels: ["all", ...models],
-              availableStages: ["all", ...stages],
-              dateRange: {
-                start: startDate.toISOString(),
-                end: endDate.toISOString(),
-              },
-            },
-          };
-
-          return new NextResponse(
-            JSON.stringify({
-              message: "Matrix data fetched successfully from metrics!",
-              data: response,
-            }),
-            { status: 200 }
-          );
-        }
-      }
-
-      // Last resort: Check brandmetrix collection directly
-      try {
-        const db = connection.db;
-        const brandmetrixCollection = db?.collection("brandmetrix");
-        if (brandmetrixCollection) {
-          const directMetrics = await brandmetrixCollection
-            .find({
-              brand_id: new Types.ObjectId(brandId),
-            })
-            .limit(5)
-            .toArray();
-          if (directMetrics.length > 0) {
-            console.log(
-              "Matrix API Debug - Sample brandmetrix document:",
-              JSON.stringify(directMetrics[0], null, 2)
-            );
-          }
-        }
-      } catch (directQueryError) {
-        console.log("Matrix API Debug - Direct query error:", directQueryError);
-      }
+      return new NextResponse(
+        JSON.stringify({
+          message:
+            "No multi-prompt analysis data found for the specified criteria",
+          data: response,
+        }),
+        { status: 200 }
+      );
     }
 
     // Calculate trend for each matrix cell (compare with previous period)
@@ -313,32 +236,33 @@ export const GET = async (
             model: "$model",
             stage: "$stage",
           },
-          avgScore: { $avg: "$score" },
+          avgWeightedScore: { $avg: "$weighted_score" },
         },
       },
     ];
 
-    const previousResults = await BrandAnalysis.aggregate(
+    const previousResults = await MultiPromptAnalysis.aggregate(
       previousMatrixAggregation
     );
     const previousScoreMap = new Map();
     previousResults.forEach((result) => {
       const key = `${result._id.model}-${result._id.stage}`;
-      previousScoreMap.set(key, result.avgScore);
+      previousScoreMap.set(key, result.avgWeightedScore);
     });
 
-    // Build matrix data with trend calculation
+    // Build matrix data with trend calculation using weighted scores
     const matrixData = matrixResults.map((result) => {
       const key = `${result._id.model}-${result._id.stage}`;
-      const currentScore = result.avgScore;
-      const previousScore = previousScoreMap.get(key) || currentScore;
+      const currentWeightedScore = result.avgWeightedScore || 0;
+      const previousWeightedScore =
+        previousScoreMap.get(key) || currentWeightedScore;
 
       let trend: "up" | "down" | "neutral" = "neutral";
       let trendPercentage = 0;
 
-      if (previousScore > 0) {
-        const difference = currentScore - previousScore;
-        trendPercentage = Math.abs((difference / previousScore) * 100);
+      if (previousWeightedScore > 0) {
+        const difference = currentWeightedScore - previousWeightedScore;
+        trendPercentage = Math.abs((difference / previousWeightedScore) * 100);
 
         if (difference > 0.5) trend = "up";
         else if (difference < -0.5) trend = "down";
@@ -347,37 +271,63 @@ export const GET = async (
       return {
         model: result._id.model,
         stage: result._id.stage,
-        score: Math.round(currentScore),
-        prompts: result.totalPrompts,
-        avgResponseTime: Math.round(result.avgResponseTime * 100) / 100,
-        successRate: Math.round(result.avgSuccessRate),
+        score: Math.round(result.avgOverallScore || 0),
+        weightedScore: Math.round(currentWeightedScore), // Add weighted score
+        analyses: result.totalAnalyses || 0, // Number of multi-prompt analyses
+        prompts: result.totalPrompts || 0, // Total prompts across all analyses
+        avgResponseTime: Math.round((result.avgResponseTime || 0) * 100) / 100,
+        successRate: Math.round(result.avgSuccessRate || 0),
         trend,
         trendPercentage: Math.round(trendPercentage),
       };
     });
 
-    // Calculate summary statistics
+    // Calculate summary statistics using weighted scores
     const totalAnalyses = matrixData.reduce(
+      (sum, item) => sum + item.analyses,
+      0
+    );
+    const totalPrompts = matrixData.reduce(
       (sum, item) => sum + item.prompts,
       0
     );
-    const overallAvgScore =
+    const overallAvgWeightedScore =
       totalAnalyses > 0
-        ? matrixData.reduce((sum, item) => sum + item.score * item.prompts, 0) /
-          totalAnalyses
+        ? matrixData.reduce(
+            (sum, item) => sum + item.weightedScore * item.analyses,
+            0
+          ) / totalAnalyses
         : 0;
 
-    // Find best and worst performing combinations
-    const sortedByScore = [...matrixData].sort((a, b) => b.score - a.score);
-    const bestPerforming = sortedByScore[0] || null;
-    const worstPerforming = sortedByScore[sortedByScore.length - 1] || null;
+    // Find best and worst performing combinations based on weighted score
+    const sortedByWeightedScore = [...matrixData].sort(
+      (a, b) => b.weightedScore - a.weightedScore
+    );
+    const bestPerforming = sortedByWeightedScore[0]
+      ? {
+          model: sortedByWeightedScore[0].model,
+          stage: sortedByWeightedScore[0].stage,
+          score: sortedByWeightedScore[0].weightedScore,
+        }
+      : null;
+    const worstPerforming = sortedByWeightedScore[
+      sortedByWeightedScore.length - 1
+    ]
+      ? {
+          model: sortedByWeightedScore[sortedByWeightedScore.length - 1].model,
+          stage: sortedByWeightedScore[sortedByWeightedScore.length - 1].stage,
+          score:
+            sortedByWeightedScore[sortedByWeightedScore.length - 1]
+              .weightedScore,
+        }
+      : null;
 
     // Get available filter options
     const [availableModels, availableStages] = await Promise.all([
-      BrandAnalysis.distinct("model", {
+      MultiPromptAnalysis.distinct("model", {
         brand_id: new Types.ObjectId(brandId),
       }),
-      BrandAnalysis.distinct("stage", {
+      MultiPromptAnalysis.distinct("stage", {
         brand_id: new Types.ObjectId(brandId),
       }),
     ]);
@@ -392,21 +342,10 @@ export const GET = async (
       },
       summary: {
         totalAnalyses,
-        avgScore: Math.round(overallAvgScore * 100) / 100,
-        bestPerforming: bestPerforming
-          ? {
-              model: bestPerforming.model,
-              stage: bestPerforming.stage,
-              score: bestPerforming.score,
-            }
-          : null,
-        worstPerforming: worstPerforming
-          ? {
-              model: worstPerforming.model,
-              stage: worstPerforming.stage,
-              score: worstPerforming.score,
-            }
-          : null,
+        totalPrompts,
+        avgWeightedScore: Math.round(overallAvgWeightedScore * 100) / 100,
+        bestPerforming,
+        worstPerforming,
       },
       filters: {
         period,

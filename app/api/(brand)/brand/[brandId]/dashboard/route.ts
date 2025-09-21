@@ -2,8 +2,7 @@ import { NextResponse } from "next/server";
 import connect from "@/lib/db";
 import { Types } from "mongoose";
 import Brand from "@/lib/models/brand";
-import BrandAnalysis from "@/lib/models/brandAnalysis";
-import BrandMetrics from "@/lib/models/brandMetrics";
+import MultiPromptAnalysis from "@/lib/models/multiPromptAnalysis";
 import { authMiddleware } from "@/middlewares/apis/authMiddleware";
 import { Membership } from "@/lib/models/membership";
 import { z } from "zod";
@@ -114,7 +113,6 @@ export const GET = async (
     const analysisFilter: any = {
       brand_id: brandId,
       createdAt: { $gte: startDate, $lte: endDate },
-      status: "success",
     };
 
     if (model !== "all") {
@@ -124,34 +122,41 @@ export const GET = async (
       analysisFilter.stage = stage;
     }
 
-    // Get current period analytics
-    const [analysisData, latestMetrics] = await Promise.all([
-      // Get all analysis data for the period
-      BrandAnalysis.find(analysisFilter).sort({ createdAt: -1 }),
+    // Get current period analytics using multi-prompt analysis
+    const analysisData = await MultiPromptAnalysis.find(analysisFilter).sort({
+      createdAt: -1,
+    });
 
-      // Get latest daily metrics
-      BrandMetrics.findOne({
-        brand_id: brandId,
-        period: "daily",
-      }).sort({ date: -1 }),
-    ]);
-
-    // Calculate aggregated metrics
-    const totalPrompts = analysisData.length;
-    const avgScore =
-      totalPrompts > 0
-        ? analysisData.reduce((sum, item) => sum + item.score, 0) / totalPrompts
+    // Calculate aggregated metrics using multi-prompt analysis data
+    const totalAnalyses = analysisData.length;
+    const avgOverallScore =
+      totalAnalyses > 0
+        ? analysisData.reduce((sum, item) => sum + item.overall_score, 0) /
+          totalAnalyses
+        : 0;
+    const avgWeightedScore =
+      totalAnalyses > 0
+        ? analysisData.reduce((sum, item) => sum + item.weighted_score, 0) /
+          totalAnalyses
         : 0;
     const avgResponseTime =
-      totalPrompts > 0
-        ? analysisData.reduce((sum, item) => sum + item.response_time, 0) /
-          totalPrompts
+      totalAnalyses > 0
+        ? analysisData.reduce(
+            (sum, item) => sum + item.total_response_time,
+            0
+          ) / totalAnalyses
         : 0;
     const successRate =
-      totalPrompts > 0
+      totalAnalyses > 0
         ? analysisData.reduce((sum, item) => sum + item.success_rate, 0) /
-          totalPrompts
+          totalAnalyses
         : 0;
+
+    // Calculate total prompts processed across all analyses
+    const totalPromptsProcessed = analysisData.reduce(
+      (sum, item) => sum + item.metadata.total_prompts,
+      0
+    );
 
     // Calculate scores by stage
     const scores = {
@@ -168,9 +173,9 @@ export const GET = async (
       EVFU: 0,
     };
     analysisData.forEach(
-      (item: { stage: keyof typeof scores; score: number }) => {
+      (item: { stage: keyof typeof scores; weighted_score: number }) => {
         if (item.stage in scores) {
-          scores[item.stage] += item.score;
+          scores[item.stage] += item.weighted_score; // Use weighted score
           stageCounts[item.stage]++;
         }
       }
@@ -192,11 +197,11 @@ export const GET = async (
     let sentimentCount = 0;
 
     analysisData.forEach((item) => {
-      sentimentData.positive += item.sentiment.distribution.positive;
-      sentimentData.neutral += item.sentiment.distribution.neutral;
-      sentimentData.negative += item.sentiment.distribution.negative;
+      sentimentData.positive += item.aggregated_sentiment.distribution.positive;
+      sentimentData.neutral += item.aggregated_sentiment.distribution.neutral;
+      sentimentData.negative += item.aggregated_sentiment.distribution.negative;
       sentimentData.stronglyPositive +=
-        item.sentiment.distribution.strongly_positive;
+        item.aggregated_sentiment.distribution.strongly_positive;
       sentimentCount++;
     });
 
@@ -209,19 +214,20 @@ export const GET = async (
       };
     }
 
-    // Calculate sentiment trend
-    const recentData = analysisData.slice(0, Math.floor(totalPrompts / 2));
-    const olderData = analysisData.slice(Math.floor(totalPrompts / 2));
+    // Calculate sentiment trend using weighted scores
+    const recentData = analysisData.slice(0, Math.floor(totalAnalyses / 2));
+    const olderData = analysisData.slice(Math.floor(totalAnalyses / 2));
 
     let trend: "up" | "down" | "neutral" = "neutral";
     let trendPercentage = 0;
 
     if (recentData.length > 0 && olderData.length > 0) {
       const recentAvg =
-        recentData.reduce((sum, item) => sum + item.score, 0) /
+        recentData.reduce((sum, item) => sum + item.weighted_score, 0) /
         recentData.length;
       const olderAvg =
-        olderData.reduce((sum, item) => sum + item.score, 0) / olderData.length;
+        olderData.reduce((sum, item) => sum + item.weighted_score, 0) /
+        olderData.length;
 
       const difference = recentAvg - olderAvg;
       trendPercentage = Math.abs((difference / olderAvg) * 100);
@@ -239,7 +245,7 @@ export const GET = async (
 
     analysisData.forEach((item) => {
       const model = item.model as keyof typeof modelPerformance;
-      modelPerformance[model].score += item.score;
+      modelPerformance[model].score += item.weighted_score; // Use weighted score
       modelPerformance[model].prompts++;
     });
 
@@ -272,7 +278,8 @@ export const GET = async (
       const dayLabel = date.toLocaleDateString("en-US", { weekday: "short" });
       const dayAvgScore =
         dayData.length > 0
-          ? dayData.reduce((sum, item) => sum + item.score, 0) / dayData.length
+          ? dayData.reduce((sum, item) => sum + item.weighted_score, 0) /
+            dayData.length
           : 0;
 
       weeklyData.labels.push(dayLabel);
@@ -288,8 +295,10 @@ export const GET = async (
         region: brand.region,
       },
       currentPeriodMetrics: {
-        totalPrompts,
-        avgScore: Math.round(avgScore * 100) / 100,
+        totalAnalyses: totalAnalyses,
+        totalPrompts: totalPromptsProcessed,
+        avgOverallScore: Math.round(avgOverallScore * 100) / 100,
+        avgWeightedScore: Math.round(avgWeightedScore * 100) / 100, // Primary metric
         avgResponseTime: Math.round(avgResponseTime * 100) / 100,
         successRate: Math.round(successRate * 100) / 100,
         lastUpdated:
