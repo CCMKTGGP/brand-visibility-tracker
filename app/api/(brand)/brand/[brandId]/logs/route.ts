@@ -9,7 +9,6 @@ import { z } from "zod";
 import { RouteParams, BrandParams } from "@/types/api";
 import { AIModel, AnalysisStage } from "@/types/brand";
 import { CreditService } from "@/lib/services/creditService";
-import { qstash } from "@/lib/qstash";
 import AnalysisStatus from "@/lib/models/analysisStatus";
 import AnalysisPair from "@/lib/models/analysisPair";
 
@@ -512,29 +511,38 @@ export const POST = async (
       );
     }
 
-    // Schedule recurring QStash jobs every 10 minutes
+    // Trigger Upstash Workflow for analysis
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL!;
     const webhookUrl = `${baseUrl}/api/run-analysis`;
 
-    console.log(`Scheduling recurring analysis jobs for ${webhookUrl}`);
-    // Start analysis in background
-    console.log(`Triggering background analysis for brand ${brand.name}`);
+    console.log(`Triggering Upstash Workflow for ${webhookUrl}`);
+    console.log(`Starting background analysis for brand ${brand.name}`);
 
-    // Enqueue first QStash job (no cron, just one-time)
+    // Prepare first pair and remaining pairs
     const [firstPair, ...remainingPairs] = pairs;
 
-    // Schedule recurring jobs every 5 minutes
-    await qstash.publishJSON({
-      url: webhookUrl,
-      body: {
+    // Trigger the workflow using fetch
+    const workflowResponse = await fetch(webhookUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${process.env.QSTASH_TOKEN}`,
+      },
+      body: JSON.stringify({
         brandId,
         userId,
         analysisId,
         currentPair: firstPair,
         remainingPairs,
-        analysisStartedAt,
-      },
+        analysisStartedAt: analysisStartedAt.toISOString(),
+      }),
     });
+
+    if (!workflowResponse.ok) {
+      throw new Error(
+        `Failed to trigger workflow: ${workflowResponse.statusText}`
+      );
+    }
 
     // Return immediate response
     return new NextResponse(
