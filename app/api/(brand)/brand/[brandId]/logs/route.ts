@@ -11,6 +11,7 @@ import { AIModel, AnalysisStage } from "@/types/brand";
 import { CreditService } from "@/lib/services/creditService";
 import AnalysisStatus from "@/lib/models/analysisStatus";
 import AnalysisPair from "@/lib/models/analysisPair";
+import { Client } from "@upstash/workflow";
 
 const LogsQuerySchema = z.object({
   userId: z.string().min(1, "User ID is required"),
@@ -521,28 +522,25 @@ export const POST = async (
     // Prepare first pair and remaining pairs
     const [firstPair, ...remainingPairs] = pairs;
 
-    // Trigger the workflow using fetch
-    const workflowResponse = await fetch(webhookUrl, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${process.env.QSTASH_TOKEN}`,
-      },
-      body: JSON.stringify({
+    // Initialize Upstash Workflow client
+    const workflowClient = new Client({
+      token: process.env.QSTASH_TOKEN!,
+    });
+
+    // Trigger the workflow using Upstash Workflow client
+    const { workflowRunId } = await workflowClient.trigger({
+      url: webhookUrl,
+      body: {
         brandId,
         userId,
         analysisId,
         currentPair: firstPair,
         remainingPairs,
         analysisStartedAt: analysisStartedAt.toISOString(),
-      }),
+      },
     });
 
-    if (!workflowResponse.ok) {
-      throw new Error(
-        `Failed to trigger workflow: ${workflowResponse.statusText}`
-      );
-    }
+    console.log(`Workflow triggered with ID: ${workflowRunId}`);
 
     // Return immediate response
     return new NextResponse(

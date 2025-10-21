@@ -1,4 +1,4 @@
-import { serve } from "@upstash/workflow/nextjs";
+import { serve, Client } from "@upstash/workflow/nextjs";
 import { AIModel, AnalysisStage } from "@/types/brand";
 import connect from "@/lib/db";
 import Brand from "@/lib/models/brand";
@@ -163,33 +163,30 @@ export const { POST } = serve<{
 
     console.log(`Scheduling next pair: ${nextPair.model}-${nextPair.stage}`);
 
-    // Trigger next workflow
+    // Trigger next workflow using Upstash Workflow client
     await context.run("trigger-next-pair", async () => {
       const baseUrl = process.env.NEXT_PUBLIC_BASE_URL!;
       const webhookUrl = `${baseUrl}/api/run-analysis`;
 
-      // Use fetch to trigger the next workflow
-      const response = await fetch(webhookUrl, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${process.env.QSTASH_TOKEN}`,
-        },
-        body: JSON.stringify({
+      const workflowClient = new Client({
+        token: process.env.QSTASH_TOKEN!,
+      });
+
+      const { workflowRunId } = await workflowClient.trigger({
+        url: webhookUrl,
+        body: {
           brandId,
           userId,
           analysisId,
           currentPair: nextPair,
           remainingPairs: nextRemaining,
           analysisStartedAt,
-        }),
+        },
       });
 
-      if (!response.ok) {
-        throw new Error(`Failed to trigger next pair: ${response.statusText}`);
-      }
-
-      console.log(`🔁 Triggered next pair: ${nextPair.model}-${nextPair.stage}`);
+      console.log(
+        `🔁 Triggered next pair: ${nextPair.model}-${nextPair.stage} (Run ID: ${workflowRunId})`
+      );
     });
   } else {
     // All pairs completed - finalize analysis
