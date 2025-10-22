@@ -46,25 +46,30 @@ export const { POST } = serve<{
   });
 
   // Verify analysis is still running
-  const currentAnalysis = await context.run("check-analysis-status", async () => {
-    const analysis = await AnalysisStatus.findOne({
-      analysis_id: analysisId,
-    });
+  const currentAnalysis = await context.run(
+    "check-analysis-status",
+    async () => {
+      const analysis = await AnalysisStatus.findOne({
+        analysis_id: analysisId,
+      });
 
-    if (!analysis) {
-      console.log(`❌ Analysis ${analysisId} not found`);
-      throw new Error("Analysis not found");
+      if (!analysis) {
+        console.log(`❌ Analysis ${analysisId} not found`);
+        throw new Error("Analysis not found");
+      }
+
+      if (analysis.status !== "running") {
+        console.log(
+          `⏹️ Analysis ${analysisId} is not running (${analysis.status})`
+        );
+        throw new Error(`Analysis not running: ${analysis.status}`);
+      }
+
+      return analysis;
     }
+  );
 
-    if (analysis.status !== "running") {
-      console.log(
-        `⏹️ Analysis ${analysisId} is not running (${analysis.status})`
-      );
-      throw new Error(`Analysis not running: ${analysis.status}`);
-    }
-
-    return analysis;
-  });
+  console.log("currentAnalysis", currentAnalysis);
 
   // Get brand and user details
   const { brand, user } = await context.run("get-brand-user", async () => {
@@ -107,11 +112,11 @@ export const { POST } = serve<{
       currentPair.model,
       currentPair.stage
     );
-    
+
     if (!analysisResult) {
       throw new Error("AI result empty");
     }
-    
+
     return analysisResult;
   });
 
@@ -128,35 +133,40 @@ export const { POST } = serve<{
   });
 
   // Mark pair as completed
-  const completedTasks = await context.run("update-progress-complete", async () => {
-    await AnalysisPair.findOneAndUpdate(
-      {
-        analysis_id: analysisId,
-        model: currentPair.model,
-        stage: currentPair.stage,
-      },
-      { status: "completed" }
-    );
-
-    const status = await AnalysisStatus.findOne({ analysis_id: analysisId });
-    const completed = (status?.progress?.completed_tasks || 0) + 1;
-
-    await AnalysisStatus.findOneAndUpdate(
-      { analysis_id: analysisId },
-      {
-        $set: {
-          "progress.completed_tasks": completed,
-          "progress.current_task": `Completed analysis for ${currentPair.model}-${currentPair.stage}`,
+  const completedTasks = await context.run(
+    "update-progress-complete",
+    async () => {
+      await AnalysisPair.findOneAndUpdate(
+        {
+          analysis_id: analysisId,
+          model: currentPair.model,
+          stage: currentPair.stage,
         },
-      }
-    );
+        { status: "completed" }
+      );
 
-    console.log(
-      `✅ Finished ${currentPair.model}-${currentPair.stage} (${completed}/${status?.progress.total_tasks})`
-    );
+      const status = await AnalysisStatus.findOne({ analysis_id: analysisId });
+      const completed = (status?.progress?.completed_tasks || 0) + 1;
 
-    return completed;
-  });
+      await AnalysisStatus.findOneAndUpdate(
+        { analysis_id: analysisId },
+        {
+          $set: {
+            "progress.completed_tasks": completed,
+            "progress.current_task": `Completed analysis for ${currentPair.model}-${currentPair.stage}`,
+          },
+        }
+      );
+
+      console.log(
+        `✅ Finished ${currentPair.model}-${currentPair.stage} (${completed}/${status?.progress.total_tasks})`
+      );
+
+      return completed;
+    }
+  );
+
+  console.log("completedTasks", completedTasks);
 
   // Check if there are more pairs to process
   if (remainingPairs && remainingPairs.length > 0) {
@@ -214,7 +224,8 @@ export const { POST } = serve<{
       });
 
       const totalAnalyses = analysisResults.length;
-      const totalAnalysisTime = Date.now() - new Date(analysisStartedAt).getTime();
+      const totalAnalysisTime =
+        Date.now() - new Date(analysisStartedAt).getTime();
       const avgScore =
         analysisResults.length > 0
           ? analysisResults.reduce((sum, r) => sum + r.overall_score, 0) /
