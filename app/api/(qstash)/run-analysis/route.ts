@@ -1,4 +1,5 @@
-import { serve, Client } from "@upstash/workflow/nextjs";
+import { serve } from "@upstash/workflow/nextjs";
+import { Client } from "@upstash/workflow";
 import { AIModel, AnalysisStage } from "@/types/brand";
 import connect from "@/lib/db";
 import Brand from "@/lib/models/brand";
