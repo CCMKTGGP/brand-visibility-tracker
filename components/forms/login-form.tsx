@@ -1,9 +1,19 @@
 "use client";
 
+// React imports
+import { useState } from "react";
+
+// Next.js imports
+import { useRouter } from "next/navigation";
+import Link from "next/link";
+
+// Third-party imports
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
+import { Eye, EyeOff } from "lucide-react";
 
+// Local imports
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -14,17 +24,14 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { useState } from "react";
-import { Eye, EyeOff } from "lucide-react";
 import { Checkbox } from "../ui/checkbox";
-import { useRouter } from "next/navigation";
-import Link from "next/link";
 import Loading from "../loading";
 import { postData } from "@/utils/fetch";
 import ApiError from "../api-error";
 import { redirectToCurrentOnboardingStep } from "@/utils/mapCurrentOnboardingStep";
 import { useUserContext } from "@/context/userContext";
 
+// Form validation schema
 const formSchema = z.object({
   email: z.string().min(2, {
     message: "Please enter a valid email address",
@@ -35,6 +42,15 @@ const formSchema = z.object({
   rememberMe: z.boolean(),
 });
 
+/**
+ * Login Form Component
+ *
+ * Handles user authentication with email/password validation.
+ * Includes password visibility toggle, remember me option, and error handling.
+ * Redirects users based on their onboarding status after successful login.
+ *
+ * @returns JSX.Element - The login form component
+ */
 export function LoginForm() {
   const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
@@ -51,6 +67,11 @@ export function LoginForm() {
     },
   });
 
+  /**
+   * Handles form submission for user login
+   *
+   * @param values - Form values containing email, password, and rememberMe
+   */
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setLoading(true);
 

@@ -1,6 +1,9 @@
 "use client";
-import Logo from "@/components/logo";
-import { ModeToggle } from "@/components/mode-toggle";
+
+// Next.js imports
+import Link from "next/link";
+
+// Third-party imports
 import {
   Building2,
   BarChart3,
@@ -15,8 +18,19 @@ import {
   Target,
   Globe,
 } from "lucide-react";
-import Link from "next/link";
 
+// Local imports
+import Logo from "@/components/logo";
+import { ModeToggle } from "@/components/mode-toggle";
+
+/**
+ * Home Page Component
+ *
+ * Landing page for the Brand Visibility Tracker application.
+ * Features hero section, features showcase, testimonials, pricing, and footer.
+ *
+ * @returns JSX.Element - The complete landing page
+ */
 export default function Home() {
   const features = [
     {

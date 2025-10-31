@@ -131,8 +131,8 @@ const BrandListContent = ({ userId }: { userId: string }) => {
   }
 
   const filteredBrands = brands.filter((brand) => {
-    const matchesSearch = brand.name
-      .toLowerCase()
+    const matchesSearch = brand?.name
+      ?.toLowerCase()
       .includes(searchTerm.toLowerCase());
     const matchesCategory =
       selectedCategory === "all" || brand.category === selectedCategory;

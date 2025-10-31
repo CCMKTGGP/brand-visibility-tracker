@@ -1,6 +1,17 @@
+// Next.js imports
 import { NextResponse } from "next/server";
+
+// Third-party imports
 import sgMail from "@sendgrid/mail";
 
+/**
+ * Sends email using SendGrid service
+ *
+ * @param userEmail - Recipient email address
+ * @param subject - Email subject line
+ * @param message - HTML email content
+ * @returns Promise<NextResponse | void> - Error response if sending fails
+ */
 export const sendEmail = async (
   userEmail: string,
   subject: string,

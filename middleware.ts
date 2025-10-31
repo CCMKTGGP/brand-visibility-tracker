@@ -48,7 +48,6 @@ export default async function middleware(request: NextRequest) {
   ) {
     // get the authResult form the authMiddleware
     const authResult = await authMiddleware(request);
-    console.log(config.matcher);
     // if it is false then return access denined
     if (!authResult.isValid) {
       return new NextResponse(JSON.stringify({ message: "Access Denied!" }), {

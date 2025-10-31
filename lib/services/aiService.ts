@@ -119,15 +119,8 @@ export class AIService {
     switch (stage) {
       case "TOFU":
         return {
-          systemMessage: `
-          You are a marketing analysis assistant.
-          Your task is to evaluate a brand’s presence and visibility in the Top-Of-Funnel (TOFU) stage.
-
-          TOFU focuses on awareness and recognition:
-          - How visible is the brand online and within its industry?
-          - Is the brand mentioned among top competitors or notable players?
-          - How discoverable is it in search and social contexts?
-        `,
+          systemMessage: `You are an analytical model tasked with evaluating a Large Language Model's response to a Top-of-Funnel (TOFU) market visibility question. 
+          Your job is to extract structured insights about brand visibility from the given text. Avoid using hedge words like 'likely', 'probably', 'seems', 'appears' - be direct and confident in your assessments.`,
           prompt: `
           Brand Context:
           ${brandSummary}
@@ -138,17 +131,19 @@ export class AIService {
           Response to Evaluate:
           ${response}
 
-          When evaluating:
-          - Identify if the brand is mentioned among industry leaders.
-          - Assign a rank: first, second, third, fourth, fifth, or 'absent'.
-          - Be concise and objective.
+          Follow these steps:
+          1. Identify if the brand "${name}" is mentioned or implied in the response.  
+          2. Extract a ranked list  of all brands or companies mentioned.  
+          3. Determine the target brand's relative rank or visibility.  
+          4. If the brand is not mentioned, mark it as “absent.”
+          5. Add any short contextual comment about competitors or reasons for absence.
 
-          Format strictly like this, Make sure all keys and strings are properly quoted and commas are placed correctly.
+          Format strictly like this without the markdown formatting, Make sure all keys and strings are properly quoted and commas are placed correctly.
           Example:
           { 
             "brand_mentioned": true/false,
             "rank": "first|second|third|fourth|fifth|absent",
-            "comment": "<short comment based on the question asked and the response to evaluate, if the brand is mentioned, provide a short comment on why it is mentioned in the given rank, if the brand is not mentioned, provide a short comment on why it is not mentioned and how it can be improved to be mentioned in the given rank>",
+            "comment": "short comment based on the question asked and the response to evaluate, if the brand is mentioned, provide a short comment on why it is mentioned in the given rank, if the brand is not mentioned, provide a short comment on why it is not mentioned and how it can be improved to be mentioned in the given rank",
             "sentiment_distribution": {
               "overall": "positive|neutral|negative",
               "confidence": number <0-100>,
@@ -163,14 +158,8 @@ export class AIService {
         };
       case "MOFU":
         return {
-          systemMessage: `
-          You are a marketing analysis assistant.
-          Your task is to evaluate a brand’s performance in the Middle-Of-Funnel (MOFU) stage.
-
-          MOFU focuses on evaluation and consideration:
-          - How do people perceive the brand’s value, features, and credibility?
-          - What is the sentiment around its offerings compared to competitors?
-          `,
+          systemMessage: `You are an analytical model tasked with evaluating a Large Language Model's response to a Middle-of-Funnel (MOFU) market visibility question.
+          Your job is to extract structured insights about brand positioning, sentiment, and competitive context from the given text. Avoid using hedge words like 'likely', 'probably', 'seems', 'appears' - be direct and confident in your assessments.`,
           prompt: `
           Brand Context:
           ${brandSummary}
@@ -181,16 +170,21 @@ export class AIService {
           Response to Evaluate:
           ${response}
 
+          Follow these steps:
+          1. Identify whether the target brand ("${name}") is mentioned in the response.
+          2. Determine how it is positioned (positively, negatively, or neutrally).
+          3. Extract any specific strengths, weaknesses, or differentiators attributed to the brand.
+          4. If the response compares ${name} to competitors (like ${competitors?.join(
+            ", "
+          )}), note the comparison and who is favored.
+          5. Extract all competitor brands mentioned.
+          6. Summarize the overall sentiment tone toward ${name} in one word: "positive", "neutral", or "negative".
 
-          When evaluating:
-          - Assign tone: positive, conditional, neutral, negative, or absent.
-          - Provide short reasoning if relevant.
-
-          Format strictly like this, Make sure all keys and strings are properly quoted and commas are placed correctly.
+          Format strictly like this without the markdown formatting, Make sure all keys and strings are properly quoted and commas are placed correctly.
           Example:
           {
             "tone": "positive|conditional|neutral|negative|absent",
-            "comment": "<short comment based on the question asked and the response to evaluate, if positive, provide a short comment on why it is positive, if conditional / neutral / negative/ absent, provide a short comment on why it is conditional / neutral / negative / absent and how it can be improved to be positive>",
+            "comment": "short summary of how ${name} is portrayed or compared, if positive, provide a short comment on why it is positive, if conditional / neutral / negative/ absent, provide a short comment on why it is conditional / neutral / negative / absent and how it can be improved to be positive",
             "sentiment_distribution": {
               "overall": "positive|neutral|negative",
               "confidence": number <0-100>,
@@ -205,14 +199,8 @@ export class AIService {
         };
       case "BOFU":
         return {
-          systemMessage: `
-          You are a marketing analysis assistant.
-          Your task is to evaluate a brand’s performance in the Bottom-Of-Funnel (BOFU) stage.
-
-          BOFU focuses on purchase intent and reliability:
-          - How likely is a customer to convert or buy?
-          - Is the brand positioned clearly for conversion?
-          `,
+          systemMessage: `You are an analytical model tasked with evaluating a Large Language Model's response to a Bottom-of-Funnel (BOFU) market visibility question. 
+          Your job is to determine how "${name}" is portrayed in terms of purchase readiness, trustworthiness, and conversion potential. Avoid using hedge words like 'likely', 'probably', 'seems', 'appears' - be direct and confident in your assessments.`,
           prompt: `
           Brand Context:
           ${brandSummary}
@@ -223,15 +211,18 @@ export class AIService {
           Response to Evaluate:
           ${response}
 
-          When evaluating:
-          - Assign intent: yes, partial, unclear, no, or absent.
-          - Provide short reasoning if relevant.
+          Follow these steps:
+          1. Check if the target brand ("${name}") is mentioned in the response.
+          2. Determine if the response encourages, discourages, or is neutral about buying or signing up with the brand.
+          3. Identify any mention of pricing, free trials, consultations, or offers.
+          4. Assess how reliable or trustworthy the brand is portrayed.
+          5. Extract the overall tone or sentiment toward purchasing intent.
 
-          Format strictly like this, Make sure all keys and strings are properly quoted and commas are placed correctly.
+          Format strictly like this without the markdown formatting, Make sure all keys and strings are properly quoted and commas are placed correctly.
           Example:
           {
             "intent": "yes|partial|unclear|no|absent",
-            "comment": "<short comment based on the question asked and the response to evaluate, if yes, provide a short comment on why it is yes, if partial / unclear / no / absent, provide a short comment on why it is partial / unclear / no / absent and how it can be improved to be yes>",
+            "comment": "short summary of how the response portrays ${name} in terms of readiness to buy or recommend, if yes, provide a short comment on why it is yes, if partial / unclear / no / absent, provide a short comment on why it is partial / unclear / no / absent and how it can be improved to be yes",
             "sentiment_distribution": {
               "overall": "positive|neutral|negative",
               "confidence": number <0-100>,
@@ -246,13 +237,8 @@ export class AIService {
         };
       case "EVFU":
         return {
-          systemMessage: `
-          You are a marketing analysis assistant.
-          Your task is to evaluate a brand’s performance in the End-Of-Funnel (EVFU) stage.
-
-          EVFU focuses on post-purchase reputation, trust, and loyalty:
-          - How do customers perceive their experience with the brand?
-          - Would they recommend it to others?`,
+          systemMessage: `You are an analytical model tasked with evaluating a Large Language Model's response to an End-of-Funnel (EVFU) market visibility question. 
+          Your goal is to extract insights on post-purchase reputation, customer satisfaction, and advocacy sentiment for "${name}". Avoid using hedge words like 'likely', 'probably', 'seems', 'appears' - be direct and confident in your assessments.`,
           prompt: `
           Brand Context:
           ${brandSummary}
@@ -263,15 +249,19 @@ export class AIService {
           Response to Evaluate:
           ${response}
 
-          When evaluating:
-          - Assign sentiment: recommend, caveat, neutral, negative, or absent.
-          - Provide short reasoning if relevant.
+          Follow these steps:
+          1. Check if the target brand ("${name}") is mentioned or referenced in the response.
+          2. Determine the overall sentiment of how the brand is perceived after purchase or client engagement.
+          3. Identify if the response indicates customer satisfaction, trust, loyalty, or advocacy.
+          4. Extract any direct or implied recommendation signals (e.g., “people would recommend,” “clients are happy,” “long-term relationships,” etc.).
+          5. Identify any weaknesses, concerns, or mixed feedback mentioned.
+          6. Summarize the overall brand reputation perception.
 
-          Format strictly like this, Make sure all keys and strings are properly quoted and commas are placed correctly.
+          Format strictly like this without the markdown formatting, Make sure all keys and strings are properly quoted and commas are placed correctly.
           Example:
           {
             "sentiment": "recommend|caveat|neutral|negative|absent",
-            "comment": "<short comment based on the question asked and the response to evaluate, if recommend, provide a short comment on why it is recommend, if caveat / neutral / negative / absent, provide a short comment on why it is caveat / neutral / negative / absent and how it can be improved to be recommend>",
+            "comment": "short summary of overall reputation and advocacy perception, if recommend, provide a short comment on why it is recommend, if caveat / neutral / negative / absent, provide a short comment on why it is caveat / neutral / negative / absent and how it can be improved to be recommend",
             "sentiment_distribution": {
               "overall": "positive|neutral|negative",
               "confidence": number <0-100>,
@@ -443,20 +433,13 @@ export class AIService {
    * ensuring they understand the context and respond appropriately for
    * different marketing funnel stages.
    */
-  private static readonly systemMessage = `You are a helpful assistant tasked with answering business discovery questions using general market knowledge and logical inference.
-
-    Adjust your response style based on the type of question:
-    - **TOFU (Top of Funnel):** Provide a ranked list of exactly 5 options. Rank them in order of relevance, prominence, or likelihood. Avoid explanations unless explicitly asked.
-    - **MOFU (Middle of Funnel):** Provide an evaluative, sentiment-based comparison or assessment of the mentioned brand(s). Focus on highlighting strengths, weaknesses, differentiators, and overall perception.
-    - **BOFU (Bottom of Funnel):** Respond with sentiment and confidence about reliability, credibility, and buyer-readiness of the mentioned brand(s).
-    - **EVFU (End of Funnel):** Respond sentimentally and persuasively, focusing on trust, reputation, and recommendation likelihood.
-
-    General Rules:
-    - Be direct and confident — avoid hedge words like “likely,” “probably,” or “appears.”
-    - If you are unfamiliar with specific brands, infer based on general industry norms or provide comparable examples.
-    - Do not discuss your training data, knowledge cutoff, or reasoning process.
-    - Never include system or meta information in your output.
-    - Do Not include the stage name in your response. (like MOFU Response, TOFU Response, etc.)`;
+  private static readonly systemMessage = `You are a helpful assistant tasked with answering business discovery questions using general market knowledge and inference.
+  When possible, respond in the form of a ranked list of exactly 5 options.
+  Rank them in order of relevance, prominence, or likelihood.
+  If you are unfamiliar with any specific brands, provide comparable examples or general best practices.
+  Avoid discussing your training data or knowledge cutoff unless specifically asked.
+  Do not explain the ranking unless explicitly instructed.
+  Avoid using hedge words like 'likely', 'probably', 'seems', 'appears' - be direct and confident in your assessments.`;
 
   /**
    * Analyzes a brand using a single AI model and prompt

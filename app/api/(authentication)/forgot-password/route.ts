@@ -1,11 +1,22 @@
+// Next.js imports
 import { NextResponse } from "next/server";
+
+// Node.js built-in imports
 import crypto from "crypto";
+
+// Local imports
 import connect from "@/lib/db";
 import User from "@/lib/models/user";
 import { IUser } from "@/types/auth";
 import { resetPasswordEmailTemplate } from "@/utils/resetPasswordEmailTempelate";
 import { sendEmail } from "@/utils/sendEmail";
 
+/**
+ * Generates a password reset token for the user
+ *
+ * @param user - User object to generate reset token for
+ * @returns Reset token string
+ */
 function getVerificationToken(user: IUser): string {
   // Generate the token
   const verificationToken = crypto.randomBytes(20).toString("hex");
@@ -20,6 +31,15 @@ function getVerificationToken(user: IUser): string {
   return verificationToken;
 }
 
+/**
+ * POST /api/forgot-password
+ *
+ * Initiates password reset process by sending reset email to user.
+ * Generates a secure reset token and sends it via email.
+ *
+ * @param request - Request object containing email
+ * @returns NextResponse with success message or error
+ */
 export const POST = async (request: Request) => {
   try {
     const { email } = await request.json();

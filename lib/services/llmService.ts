@@ -63,7 +63,7 @@ export class LLMService {
       const response = await axios.post(
         this.LLM_CONFIG.AI_ENDPOINTS.ChatGPT,
         {
-          model: "gpt-3.5-turbo",
+          model: "gpt-4o",
           messages: [
             { role: "system", content: systemMessage },
             { role: "user", content: prompt },
@@ -125,7 +125,7 @@ export class LLMService {
       const response = await axios.post(
         this.LLM_CONFIG.AI_ENDPOINTS.Claude,
         {
-          model: "claude-3-5-sonnet-20240620",
+          model: "claude-sonnet-4-20250514",
           max_tokens: 1000,
           system: systemMessage,
           messages: [{ role: "user", content: prompt }],
@@ -190,6 +190,7 @@ export class LLMService {
       const response = await axios.post(
         this.LLM_CONFIG.AI_ENDPOINTS.Gemini,
         {
+          model: "gemini-1.5-pro",
           contents: [{ parts: [{ text: geminiPrompt }] }],
         },
         {
