@@ -1,16 +1,29 @@
+// Next.js imports
 import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
+
+// Node.js built-in imports
 import crypto from "crypto";
+
+// Third-party imports
 import * as bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
+
+// Local imports
 import connect from "@/lib/db";
 import User from "@/lib/models/user";
 import { IUser } from "@/types/auth";
-import { cookies } from "next/headers";
 import { sendEmail } from "@/utils/sendEmail";
 import { verificationEmailTemplate } from "@/utils/verificationEmailTempelate";
 import { VERIFY_EMAIL } from "@/constants/onboarding-constants";
 import { CreditService } from "@/lib/services/creditService";
 
+/**
+ * Generates a verification token for user email verification
+ *
+ * @param user - User object to generate token for
+ * @returns Verification token string
+ */
 function getVerificationToken(user: IUser): string {
   // Generate the token
   const verificationToken = crypto.randomBytes(20).toString("hex");
@@ -25,6 +38,15 @@ function getVerificationToken(user: IUser): string {
   return verificationToken;
 }
 
+/**
+ * POST /api/register
+ *
+ * Creates a new user account with email verification and assigns free credits.
+ * Sends verification email to the provided email address.
+ *
+ * @param request - Request object containing full_name, email, and password
+ * @returns NextResponse with user data and JWT token or error message
+ */
 export const POST = async (request: Request) => {
   try {
     const { full_name, email, password } = await request.json();

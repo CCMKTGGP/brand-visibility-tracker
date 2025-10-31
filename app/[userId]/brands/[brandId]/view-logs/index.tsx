@@ -4,9 +4,9 @@ import React, { useState, useEffect, useCallback } from "react";
 import {
   Search,
   Clock,
-  CheckCircle,
-  XCircle,
-  AlertCircle,
+  // CheckCircle,
+  // XCircle,
+  // AlertCircle,
   FileText,
   Play,
   Filter,
@@ -316,18 +316,18 @@ export default function ViewLogs({
     return pages;
   };
 
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case "success":
-        return <CheckCircle className="w-4 h-4 text-green-500" />;
-      case "error":
-        return <XCircle className="w-4 h-4 text-red-500" />;
-      case "warning":
-        return <AlertCircle className="w-4 h-4 text-yellow-500" />;
-      default:
-        return <AlertCircle className="w-4 h-4 text-gray-500" />;
-    }
-  };
+  // const getStatusIcon = (status: string) => {
+  //   switch (status) {
+  //     case "success":
+  //       return <CheckCircle className="w-4 h-4 text-green-500" />;
+  //     case "error":
+  //       return <XCircle className="w-4 h-4 text-red-500" />;
+  //     case "warning":
+  //       return <AlertCircle className="w-4 h-4 text-yellow-500" />;
+  //     default:
+  //       return <AlertCircle className="w-4 h-4 text-gray-500" />;
+  //   }
+  // };
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -617,7 +617,7 @@ export default function ViewLogs({
                   <th className="text-left py-3 px-4 font-medium text-gray-900 dark:text-white">
                     Stage
                   </th>
-                  <th className="text-center py-3 px-4 font-medium text-gray-900 dark:text-white">
+                  <th className="text-center flex justify-center py-3 px-4 font-medium text-gray-900 dark:text-white">
                     <button
                       className="flex items-center hover:text-blue-600 dark:hover:text-blue-400"
                       onClick={() => setSortBy("overallScore")}
@@ -627,31 +627,6 @@ export default function ViewLogs({
                         <span className="ml-1">↓</span>
                       )}
                     </button>
-                  </th>
-                  <th className="text-center py-3 px-4 font-medium text-gray-900 dark:text-white">
-                    <button
-                      className="flex items-center hover:text-blue-600 dark:hover:text-blue-400"
-                      onClick={() => setSortBy("weightedScore")}
-                    >
-                      Weighted Score
-                      {sortBy === "weightedScore" && (
-                        <span className="ml-1">↓</span>
-                      )}
-                    </button>
-                  </th>
-                  <th className="text-center py-3 px-4 font-medium text-gray-900 dark:text-white">
-                    <button
-                      className="flex items-center hover:text-blue-600 dark:hover:text-blue-400"
-                      onClick={() => setSortBy("successRate")}
-                    >
-                      Success Rate
-                      {sortBy === "successRate" && (
-                        <span className="ml-1">↓</span>
-                      )}
-                    </button>
-                  </th>
-                  <th className="text-center py-3 px-4 font-medium text-gray-900 dark:text-white">
-                    Status
                   </th>
                   <th className="text-center py-3 px-4 font-medium text-gray-900 dark:text-white">
                     Details
@@ -692,43 +667,6 @@ export default function ViewLogs({
                         >
                           {Math.round(log.score)}%
                         </span>
-                      </td>
-                      <td className="py-4 px-4 text-center">
-                        {(log as any).weightedScore !== undefined ? (
-                          <span
-                            className={`font-semibold ${getScoreColor(
-                              (log as any).weightedScore
-                            )}`}
-                          >
-                            {Math.round((log as any).weightedScore)}%
-                          </span>
-                        ) : (
-                          <span className="text-gray-400">N/A</span>
-                        )}
-                      </td>
-                      <td className="py-4 px-4 text-center">
-                        <div className="flex flex-col">
-                          <span className="text-gray-900 dark:text-white font-medium">
-                            {Math.round(log.successRate)}%
-                          </span>
-                          <span className="text-xs text-gray-500 dark:text-gray-400">
-                            {Math.round(log.responseTime / 1000)}s
-                          </span>
-                        </div>
-                      </td>
-                      <td className="py-4 px-4 text-center">
-                        <div className="flex items-center justify-center">
-                          <span
-                            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(
-                              log.status
-                            )}`}
-                          >
-                            {getStatusIcon(log.status)}
-                            <span className="ml-1 capitalize">
-                              {log.status}
-                            </span>
-                          </span>
-                        </div>
                       </td>
                       <td className="py-4 px-4 text-center">
                         {(log as any).promptResults &&

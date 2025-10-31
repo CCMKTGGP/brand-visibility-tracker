@@ -1,13 +1,27 @@
+// Next.js imports
 import { NextResponse } from "next/server";
-import connect from "@/lib/db";
+import { cookies } from "next/headers";
+
+// Third-party imports
 import jwt from "jsonwebtoken";
 import * as bcrypt from "bcryptjs";
+
+// Local imports
+import connect from "@/lib/db";
 import User from "@/lib/models/user";
-import { cookies } from "next/headers";
 import { Membership } from "@/lib/models/membership";
 import Brand from "@/lib/models/brand";
 import { BrandSummary } from "@/types/auth";
 
+/**
+ * POST /api/login
+ *
+ * Authenticates a user with email and password, returns user data with JWT token
+ * and associated brands (owned and member brands).
+ *
+ * @param request - Request object containing email and password
+ * @returns NextResponse with user data and brands or error message
+ */
 export const POST = async (request: Request) => {
   try {
     // extract email and password from the request body

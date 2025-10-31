@@ -15,19 +15,11 @@ import {
 } from "@/components/ui/form";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { TagInput } from "../tag-input";
 import { useState } from "react";
 import { postData } from "@/utils/fetch";
 import ApiError from "../api-error";
 import Loading from "../loading";
-import { CATEGORIES, REGIONS } from "@/constants/onboarding-constants";
 import { OnboardingFormData } from "@/types/forms";
 
 const formSchema = z.object({
@@ -119,7 +111,7 @@ export default function OnboardingForm({
               )}
             />
 
-            <FormField
+            {/* <FormField
               control={form.control}
               name="category"
               render={({ field }) => (
@@ -170,6 +162,33 @@ export default function OnboardingForm({
                       ))}
                     </SelectContent>
                   </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            /> */}
+            <FormField
+              control={form.control}
+              name="category"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Category</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Enter category" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="region"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Region</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Enter region" {...field} />
+                  </FormControl>
                   <FormMessage />
                 </FormItem>
               )}

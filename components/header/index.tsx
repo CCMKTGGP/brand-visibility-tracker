@@ -1,23 +1,42 @@
 "use client";
 
-import { fetchData } from "@/utils/fetch";
+// React imports
+import { useState } from "react";
+
+// Next.js imports
+import { useRouter } from "next/navigation";
+
+// Third-party imports
 import { toast } from "sonner";
+import { UserCircle } from "lucide-react";
+
+// Local imports
+import { fetchData } from "@/utils/fetch";
 import Logo from "../logo";
 import { ModeToggle } from "../mode-toggle";
 import { Button } from "../ui/button";
-import { useState } from "react";
 import ApiError from "../api-error";
 import Loading from "../loading";
-import { useRouter } from "next/navigation";
 import { useUserContext } from "@/context/userContext";
-import { UserCircle } from "lucide-react";
 
+/**
+ * Header Component
+ *
+ * Application header with logo, user profile display, theme toggle, and logout functionality.
+ * Handles user logout with proper cleanup of local storage and navigation.
+ *
+ * @returns JSX.Element - The header component
+ */
 export default function Header() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const { user } = useUserContext();
 
+  /**
+   * Handles user logout process
+   * Calls logout API, clears local storage, and redirects to login page
+   */
   async function handleLogout() {
     setLoading(true);
     try {

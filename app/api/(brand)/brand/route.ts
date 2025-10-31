@@ -1,5 +1,10 @@
+// Next.js imports
 import { NextRequest, NextResponse } from "next/server";
+
+// Third-party imports
 import { z } from "zod";
+
+// Local imports
 import connect from "@/lib/db";
 import User from "@/lib/models/user";
 import Brand from "@/lib/models/brand";
@@ -8,6 +13,7 @@ import { ObjectIdString, RoleSchema, StatusSchema } from "@/utils/mongoose";
 import { BrandSummary } from "@/types/auth";
 import { authMiddleware } from "@/middlewares/apis/authMiddleware";
 
+// Zod validation schemas
 const GetAllBrandsOfUser = z.object({
   user_id: ObjectIdString,
 });
@@ -31,7 +37,15 @@ const MembershipInput = z.object({
   created_by: ObjectIdString.optional(),
 });
 
-// get api to get all the brands of the user owned or as a member
+/**
+ * GET /api/brand
+ *
+ * Retrieves all brands associated with a user (both owned and member brands).
+ * Merges owned and member brands, prioritizing owner role when duplicates exist.
+ *
+ * @param request - NextRequest containing user_id as query parameter
+ * @returns NextResponse with brands array or error message
+ */
 export async function GET(request: NextRequest) {
   // Authenticate the request
   const authResult = await authMiddleware(request);
@@ -133,7 +147,15 @@ export async function GET(request: NextRequest) {
   );
 }
 
-// create brand api
+/**
+ * POST /api/brand
+ *
+ * Creates a new brand and establishes owner membership for the user.
+ * Updates user's onboarding step to complete the brand creation process.
+ *
+ * @param request - NextRequest containing brand details and user_id
+ * @returns NextResponse with created brand data or error message
+ */
 export async function POST(request: NextRequest) {
   // Parse and validate the request body
   const parse = CreateBrandBody.safeParse(await request.json());

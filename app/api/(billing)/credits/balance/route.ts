@@ -1,14 +1,29 @@
+// Next.js imports
 import { NextRequest, NextResponse } from "next/server";
-import { authMiddleware } from "@/middlewares/apis/authMiddleware";
-import { CreditService } from "@/lib/services/creditService";
-import connect from "@/lib/db";
+
+// Third-party imports
 import { z } from "zod";
 import { Types } from "mongoose";
 
+// Local imports
+import { authMiddleware } from "@/middlewares/apis/authMiddleware";
+import { CreditService } from "@/lib/services/creditService";
+import connect from "@/lib/db";
+
+// Zod validation schema
 const UserIdSchema = z.object({
   userId: z.string().min(1, "User ID is required"),
 });
 
+/**
+ * GET /api/credits/balance
+ *
+ * Retrieves credit balance and statistics for a specific user.
+ * Requires authentication and valid userId parameter.
+ *
+ * @param request - NextRequest containing userId as query parameter
+ * @returns NextResponse with credit statistics or error message
+ */
 export async function GET(request: NextRequest) {
   try {
     // Authenticate the request

@@ -1,7 +1,20 @@
-import { Building2 } from "lucide-react";
-import Link from "next/link";
+// React imports
 import React from "react";
 
+// Next.js imports
+import Link from "next/link";
+
+// Third-party imports
+import { Building2 } from "lucide-react";
+
+/**
+ * Logo Component
+ *
+ * Displays the application logo with icon and brand name.
+ * Clickable link that navigates to the home page.
+ *
+ * @returns JSX.Element - The logo component
+ */
 export default function Logo() {
   return (
     <Link href="/" className="flex items-center cursor-pointer">

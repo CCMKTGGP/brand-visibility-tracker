@@ -1,5 +1,14 @@
+// Third-party imports
 import axios from "axios";
 
+/**
+ * Fetches data from API endpoint using GET method
+ * Automatically includes authorization token from localStorage
+ *
+ * @param url - API endpoint URL
+ * @returns Promise<any> - API response data
+ * @throws Error - When API call fails
+ */
 export async function fetchData(url: string) {
   const token =
     typeof window !== "undefined" ? localStorage.getItem("token") : "";
@@ -19,6 +28,15 @@ export async function fetchData(url: string) {
   }
 }
 
+/**
+ * Sends data to API endpoint using POST method
+ * Automatically includes authorization token from localStorage
+ *
+ * @param url - API endpoint URL
+ * @param body - Request body data
+ * @returns Promise<any> - API response data
+ * @throws Error - When API call fails
+ */
 export async function postData(url: string, body: any) {
   const token =
     typeof window !== "undefined" ? localStorage.getItem("token") : "";
@@ -38,6 +56,15 @@ export async function postData(url: string, body: any) {
   }
 }
 
+/**
+ * Updates data via API endpoint using PUT method
+ * Automatically includes authorization token from localStorage
+ *
+ * @param url - API endpoint URL
+ * @param body - Request body data
+ * @returns Promise<any> - API response data
+ * @throws Error - When API call fails
+ */
 export async function putData(url: string, body: any) {
   const token =
     typeof window !== "undefined" ? localStorage.getItem("token") : "";
@@ -57,6 +84,15 @@ export async function putData(url: string, body: any) {
   }
 }
 
+/**
+ * Partially updates data via API endpoint using PATCH method
+ * Automatically includes authorization token from localStorage
+ *
+ * @param url - API endpoint URL
+ * @param body - Request body data
+ * @returns Promise<any> - API response data
+ * @throws Error - When API call fails
+ */
 export async function patchData(url: string, body: any) {
   const token =
     typeof window !== "undefined" ? localStorage.getItem("token") : "";
@@ -76,6 +112,15 @@ export async function patchData(url: string, body: any) {
   }
 }
 
+/**
+ * Deletes data via API endpoint using DELETE method
+ * Automatically includes authorization token from localStorage
+ *
+ * @param url - API endpoint URL
+ * @param body - Optional request body data
+ * @returns Promise<any> - API response data
+ * @throws Error - When API call fails
+ */
 export async function deleteData(url: string, body?: any) {
   const token =
     typeof window !== "undefined" ? localStorage.getItem("token") : "";

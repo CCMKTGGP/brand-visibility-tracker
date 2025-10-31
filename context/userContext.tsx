@@ -1,11 +1,18 @@
 "use client";
+
+// React imports
+import { createContext, useContext, useEffect, useState } from "react";
+
+// Next.js imports
+import { usePathname, useRouter } from "next/navigation";
+
+// Local imports
 import Loading from "@/components/loading";
 import { IUser } from "@/types/auth";
 import { fetchData } from "@/utils/fetch";
 import { redirectToCurrentOnboardingStep } from "@/utils/mapCurrentOnboardingStep";
-import { usePathname, useRouter } from "next/navigation";
-import { createContext, useContext, useEffect, useState } from "react";
 
+// Initial user state
 export const INITIAL_USER_STATE: IUser = {
   _id: "",
   full_name: "",
@@ -14,6 +21,7 @@ export const INITIAL_USER_STATE: IUser = {
   credits_balance: 0,
 };
 
+// User context type definition
 const Context = createContext<{
   user: IUser;
   setUser: (user: IUser) => void;
@@ -26,6 +34,7 @@ const Context = createContext<{
   setToggleFetchUserDetails: () => {},
 });
 
+// Authentication-related paths that don't require user context
 const authPathNames = [
   "/login",
   "/register",
@@ -34,6 +43,16 @@ const authPathNames = [
   "/accept-invite",
 ];
 
+/**
+ * User Context Provider Component
+ *
+ * Manages user authentication state and handles automatic redirects
+ * based on user's onboarding status. Fetches user details on mount
+ * and provides user data throughout the application.
+ *
+ * @param children - Child components to render within the context
+ * @returns JSX.Element - The context provider with loading state
+ */
 export function UserContext({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -45,6 +64,11 @@ export function UserContext({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState<boolean>();
 
   useEffect(() => {
+    /**
+     * Fetches user details and handles onboarding redirects
+     *
+     * @param userId - The user ID to fetch details for
+     */
     async function getUserDetails(userId: string) {
       try {
         const response = await fetchData(`/api/users/${userId}`);
@@ -102,6 +126,11 @@ export function UserContext({ children }: { children: React.ReactNode }) {
   );
 }
 
+/**
+ * Hook to access user context
+ *
+ * @returns User context object with user state and setters
+ */
 export function useUserContext() {
   return useContext(Context);
 }

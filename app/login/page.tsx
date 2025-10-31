@@ -1,10 +1,22 @@
 "use client";
+
+// Next.js imports
 import Link from "next/link";
+
+// Local imports
 import { LoginForm } from "@/components/forms/login-form";
 import Logo from "@/components/logo";
 import { Button } from "@/components/ui/button";
 import { ModeToggle } from "@/components/mode-toggle";
 
+/**
+ * Login Page Component
+ *
+ * Provides user authentication interface with login form,
+ * social login options, and navigation to signup page.
+ *
+ * @returns JSX.Element - The login page interface
+ */
 const LoginPage: React.FC = () => {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 py-12 px-4 sm:px-6 lg:px-8 relative">
