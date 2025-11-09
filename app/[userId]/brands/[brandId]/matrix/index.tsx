@@ -36,7 +36,7 @@ const MatrixPage = ({
 
   const [selectedModel, setSelectedModel] = useState("all");
   const [selectedStage, setSelectedStage] = useState("all");
-  const [dateRange, setDateRange] = useState("7d");
+  const [dateRange, setDateRange] = useState("all");
   const [page, setPage] = useState(1);
   const [limit] = useState(10);
   const [matrixData, setMatrixData] = useState<MatrixResponse | null>(null);
@@ -195,8 +195,8 @@ const MatrixPage = ({
             <p className="text-xs text-blue-800 dark:text-blue-200">
               <strong>Multi-Prompt Analysis:</strong> Each analysis runs 20
               custom prompts per model/stage with position-based weighted
-              scoring. Higher weighted scores indicate better brand mention
-              positioning in AI responses.
+              scoring. Higher scores indicate better brand mention positioning
+              in AI responses.
             </p>
           </div>
         </div>
@@ -303,9 +303,6 @@ const MatrixPage = ({
                     Overall Score
                   </th>
                   <th className="text-center py-3 px-4 font-medium text-gray-900 dark:text-white">
-                    Weighted Score
-                  </th>
-                  <th className="text-center py-3 px-4 font-medium text-gray-900 dark:text-white">
                     Analyses
                   </th>
                   <th className="text-center py-3 px-4 font-medium text-gray-900 dark:text-white">
@@ -353,24 +350,6 @@ const MatrixPage = ({
                             )}`}
                           >
                             {item.score}%
-                          </span>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="py-4 px-4 text-center">
-                      <div className="flex items-center justify-center">
-                        <div className="flex items-center">
-                          <div
-                            className={`w-3 h-3 rounded-full mr-2 ${getScoreColor(
-                              item.weightedScore || item.score
-                            )}`}
-                          />
-                          <span
-                            className={`font-semibold ${getScoreTextColor(
-                              item.weightedScore || item.score
-                            )}`}
-                          >
-                            {Math.round(item.weightedScore || item.score)}%
                           </span>
                         </div>
                       </div>
@@ -477,7 +456,7 @@ const MatrixPage = ({
                 {matrixData.summary?.bestPerforming
                   ? `${Math.round(
                       matrixData.summary.bestPerforming.score
-                    )}% Weighted Score`
+                    )}% Overall Score`
                   : "No data"}
               </p>
             </div>
@@ -530,7 +509,7 @@ const MatrixPage = ({
             </div>
             <div className="ml-4">
               <h3 className="text-sm font-medium text-gray-600 dark:text-gray-400">
-                Avg Weighted Score
+                Avg Score
               </h3>
               <p className="text-lg font-bold text-gray-900 dark:text-white">
                 {(matrixData.summary as any)?.avgWeightedScore

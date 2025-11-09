@@ -2,6 +2,10 @@ export const stages = ["TOFU", "MOFU", "BOFU", "EVFU"];
 export const models = ["ChatGPT", "Claude", "Gemini"];
 export const periods = [
   {
+    label: "All time",
+    value: "all",
+  },
+  {
     label: "Last 7 days",
     value: "7d",
   },

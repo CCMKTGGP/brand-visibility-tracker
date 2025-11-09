@@ -40,7 +40,7 @@ const DashboardPage = ({
 
   const [selectedModel, setSelectedModel] = useState("all");
   const [selectedStage, setSelectedStage] = useState("all");
-  const [dateRange, setDateRange] = useState("7d");
+  const [dateRange, setDateRange] = useState("all");
   const [dashboardData, setDashboardData] = useState<DashboardResponse | null>(
     null
   );
@@ -235,7 +235,7 @@ const DashboardPage = ({
             Funnel Performance
           </h3>
           <span className="text-xs text-gray-500 dark:text-gray-400 px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded">
-            Weighted Scores
+            Scores
           </span>
         </div>
         <div className="space-y-4">
@@ -382,7 +382,7 @@ const DashboardPage = ({
                   {data.score}%
                 </div>
                 <div className="text-xs text-gray-500 dark:text-gray-400">
-                  Weighted Score
+                  Score
                 </div>
               </div>
             </div>
@@ -619,7 +619,7 @@ const DashboardPage = ({
           } prompts processed`}
           icon={<BarChart3 className="w-5 h-5 text-primary" />}
         />
-        <MetricCard
+        {/* <MetricCard
           title="Weighted Score"
           value={`${Math.round(
             dashboardData.currentPeriodMetrics.avgWeightedScore || 0
@@ -630,18 +630,23 @@ const DashboardPage = ({
             value: selectedBrand.sentiment.percentage,
             isPositive: selectedBrand.sentiment.trend === "up",
           }}
-        />
+        /> */}
         <MetricCard
           title="Overall Score"
           value={`${Math.round(
             dashboardData.currentPeriodMetrics.avgOverallScore || 0
           )}%`}
-          subtitle="Average across all prompts"
+          subtitle="Average score"
           icon={<Target className="w-5 h-5 text-primary" />}
+          trend={{
+            value: selectedBrand.sentiment.percentage,
+            isPositive: selectedBrand.sentiment.trend === "up",
+          }}
         />
         <MetricCard
           title="Success Rate"
           value={`${dashboardData.currentPeriodMetrics.successRate}%`}
+          subtitle="Average success rate"
           icon={<Activity className="w-5 h-5 text-primary" />}
         />
         <MetricCard
