@@ -10,7 +10,7 @@ import { z } from "zod";
 
 const MatrixSummaryQuerySchema = z.object({
   userId: z.string().min(1, "User ID is required"),
-  period: z.enum(["7d", "30d", "90d"]).optional().default("30d"),
+  period: z.enum(["all", "7d", "30d", "90d"]).optional().default("all"),
 });
 
 export interface BrandMatrixSummary {
@@ -97,6 +97,11 @@ export const GET = async (request: Request) => {
       case "90d":
         startDate.setDate(endDate.getDate() - 90);
         break;
+      case "all":
+      default:
+        // For "all", don't set a start date filter - fetch all data
+        startDate.setTime(0); // Set to epoch to include all data
+        break;
     }
 
     const brandSummaries: BrandMatrixSummary[] = [];
@@ -106,10 +111,14 @@ export const GET = async (request: Request) => {
       const brandId = brand._id.toString();
 
       // Get analysis data for this brand
-      const analysisFilter = {
+      const analysisFilter: any = {
         brand_id: new Types.ObjectId(brandId),
-        createdAt: { $gte: startDate, $lte: endDate },
       };
+
+      // Only add date filter if not fetching all data
+      if (period !== "all") {
+        analysisFilter.createdAt = { $gte: startDate, $lte: endDate };
+      }
 
       const [analysisData, matrixResults] = await Promise.all([
         MultiPromptAnalysis.find(analysisFilter).sort({ createdAt: -1 }),

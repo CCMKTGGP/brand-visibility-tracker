@@ -22,6 +22,7 @@ const LogsQuerySchema = z.object({
   userId: z.string().min(1, "User ID is required"),
   page: z.string().optional().default("1"),
   limit: z.string().optional().default("50"),
+  period: z.enum(["all", "7d", "30d", "90d"]).optional().default("all"),
   model: z
     .enum(["all", "ChatGPT", "Claude", "Gemini"])
     .optional()
@@ -198,6 +199,7 @@ export const GET = async (
       userId: url.searchParams.get("userId"),
       page: url.searchParams.get("page"),
       limit: url.searchParams.get("limit"),
+      period: url.searchParams.get("period"),
       model: url.searchParams.get("model"),
       stage: url.searchParams.get("stage"),
       status: url.searchParams.get("status"),
@@ -221,6 +223,7 @@ export const GET = async (
       userId,
       page,
       limit,
+      period,
       model,
       stage,
       status,
@@ -258,10 +261,35 @@ export const GET = async (
       );
     }
 
+    // Calculate date range for period filter
+    const endDate = new Date();
+    const startDate = new Date();
+    switch (period) {
+      case "7d":
+        startDate.setDate(endDate.getDate() - 7);
+        break;
+      case "30d":
+        startDate.setDate(endDate.getDate() - 30);
+        break;
+      case "90d":
+        startDate.setDate(endDate.getDate() - 90);
+        break;
+      case "all":
+      default:
+        // For "all", don't set a start date filter - fetch all data
+        startDate.setTime(0); // Set to epoch to include all data
+        break;
+    }
+
     // Build filter
     const filter: any = {
       brand_id: brandId,
     };
+
+    // Only add date filter if not fetching all data
+    if (period !== "all") {
+      filter.createdAt = { $gte: startDate, $lte: endDate };
+    }
 
     if (model !== "all") {
       filter.model = model;
@@ -387,12 +415,14 @@ export const GET = async (
         hasPrevious,
       },
       filters: {
+        period,
         model,
         stage,
         status,
         search,
         sortBy,
         sortOrder,
+        availablePeriods: ["all", "7d", "30d", "90d"],
         availableModels: ["all", ...availableModels],
         availableStages: ["all", ...availableStages],
         availableStatuses: ["all", ...availableStatuses],

@@ -10,7 +10,7 @@ import { RouteParams, BrandParams } from "@/types/api";
 
 const DashboardQuerySchema = z.object({
   userId: z.string().min(1, "User ID is required"),
-  period: z.enum(["7d", "30d", "90d"]).optional().default("7d"),
+  period: z.enum(["all", "7d", "30d", "90d"]).optional().default("all"),
   model: z
     .enum(["all", "ChatGPT", "Claude", "Gemini"])
     .optional()
@@ -107,13 +107,22 @@ export const GET = async (
       case "90d":
         startDate.setDate(endDate.getDate() - 90);
         break;
+      case "all":
+      default:
+        // For "all", don't set a start date filter - fetch all data
+        startDate.setTime(0); // Set to epoch to include all data
+        break;
     }
 
     // Build analysis filter
     const analysisFilter: any = {
       brand_id: brandId,
-      createdAt: { $gte: startDate, $lte: endDate },
     };
+
+    // Only add date filter if not fetching all data
+    if (period !== "all") {
+      analysisFilter.createdAt = { $gte: startDate, $lte: endDate };
+    }
 
     if (model !== "all") {
       analysisFilter.model = model;
@@ -490,7 +499,7 @@ export const GET = async (
         period,
         model,
         stage,
-        availablePeriods: ["7d", "30d", "90d"],
+        availablePeriods: ["all", "7d", "30d", "90d"],
         availableModels: ["all", "ChatGPT", "Claude", "Gemini"],
         availableStages: ["all", "TOFU", "MOFU", "BOFU", "EVFU"],
       },

@@ -70,7 +70,7 @@ export default function ViewLogs({
   const [selectedModel, setSelectedModel] = useState("all");
   const [selectedStage, setSelectedStage] = useState("all");
   const [selectedStatus, setSelectedStatus] = useState("all");
-  const [dateRange, setDateRange] = useState("7d");
+  const [dateRange, setDateRange] = useState("all");
   const [logsData, setLogsData] = useState<LogsResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -200,6 +200,7 @@ export default function ViewLogs({
         userId: user._id,
         page: currentPage.toString(),
         limit: limit.toString(),
+        period: dateRange,
         model: selectedModel,
         stage: selectedStage,
         status: selectedStatus,
@@ -224,6 +225,7 @@ export default function ViewLogs({
     userId,
     brandId,
     user._id,
+    dateRange,
     selectedModel,
     selectedStage,
     selectedStatus,

@@ -10,7 +10,7 @@ import { RouteParams, BrandParams } from "@/types/api";
 
 const MatrixQuerySchema = z.object({
   userId: z.string().min(1, "User ID is required"),
-  period: z.enum(["7d", "30d", "90d"]).optional().default("7d"),
+  period: z.enum(["all", "7d", "30d", "90d"]).optional().default("all"),
   model: z
     .enum(["all", "ChatGPT", "Claude", "Gemini"])
     .optional()
@@ -113,13 +113,22 @@ export const GET = async (
       case "90d":
         startDate.setDate(endDate.getDate() - 90);
         break;
+      case "all":
+      default:
+        // For "all", don't set a start date filter - fetch all data
+        startDate.setTime(0); // Set to epoch to include all data
+        break;
     }
 
     // Build analysis filter
     const analysisFilter: any = {
       brand_id: new Types.ObjectId(brandId),
-      createdAt: { $gte: startDate, $lte: endDate },
     };
+
+    // Only add date filter if not fetching all data
+    if (period !== "all") {
+      analysisFilter.createdAt = { $gte: startDate, $lte: endDate };
+    }
 
     if (model !== "all") {
       analysisFilter.model = model;
@@ -322,8 +331,46 @@ export const GET = async (
           ) / totalAnalyses
         : 0;
 
-    // Find best and worst performing combinations based on weighted score
-    const sortedByWeightedScore = [...matrixData].sort(
+    // Find best and worst performing combinations from ALL data (not just paginated)
+    // Get all matrix results without pagination for best/worst calculation
+    const allMatrixResults = await MultiPromptAnalysis.aggregate(
+      matrixAggregation as any[]
+    ).exec();
+
+    // Transform all results to calculate best/worst from complete dataset
+    const allMatrixData = allMatrixResults.map((result) => {
+      const key = `${result._id.model}-${result._id.stage}`;
+      const currentWeightedScore = result.avgWeightedScore || 0;
+      const previousWeightedScore =
+        previousScoreMap.get(key) || currentWeightedScore;
+
+      let trend: "up" | "down" | "neutral" = "neutral";
+      let trendPercentage = 0;
+
+      if (previousWeightedScore > 0) {
+        const difference = currentWeightedScore - previousWeightedScore;
+        trendPercentage = Math.abs((difference / previousWeightedScore) * 100);
+
+        if (difference > 0.5) trend = "up";
+        else if (difference < -0.5) trend = "down";
+      }
+
+      return {
+        model: result._id.model,
+        stage: result._id.stage,
+        score: Math.round(result.avgOverallScore || 0),
+        weightedScore: Math.round(currentWeightedScore),
+        analyses: result.totalAnalyses || 0,
+        prompts: result.totalPrompts || 0,
+        avgResponseTime: Math.round((result.avgResponseTime || 0) * 100) / 100,
+        successRate: Math.round(result.avgSuccessRate || 0),
+        trend,
+        trendPercentage: Math.round(trendPercentage),
+      };
+    });
+
+    // Find best and worst performing combinations based on weighted score from ALL data
+    const sortedByWeightedScore = [...allMatrixData].sort(
       (a, b) => b.weightedScore - a.weightedScore
     );
     const bestPerforming = sortedByWeightedScore[0]
@@ -374,7 +421,7 @@ export const GET = async (
         period,
         model,
         stage,
-        availablePeriods: ["7d", "30d", "90d"],
+        availablePeriods: ["all", "7d", "30d", "90d"],
         availableModels: ["all", ...availableModels],
         availableStages: ["all", ...availableStages],
         dateRange: {

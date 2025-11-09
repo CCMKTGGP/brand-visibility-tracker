@@ -136,8 +136,7 @@ const FunnelHeatmap: React.FC<FunnelHeatmapProps> = ({
             {title}
           </h3>
           <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-            Weighted scores showing brand performance across AI models and
-            funnel stages
+            Scores showing brand performance across AI models and funnel stages
           </p>
         </div>
         <div className="flex items-center space-x-2">
@@ -255,8 +254,7 @@ const FunnelHeatmap: React.FC<FunnelHeatmapProps> = ({
                           <div className="font-medium">
                             {model} - {stage}
                           </div>
-                          <div>Weighted Score: {cellData.weightedScore}%</div>
-                          <div>Raw Score: {cellData.score}%</div>
+                          <div>Average Score: {cellData.score}%</div>
                           <div>Confidence: {cellData.confidence}%</div>
                           <div>Analyses: {cellData.analyses}</div>
                           <div>
@@ -264,14 +262,6 @@ const FunnelHeatmap: React.FC<FunnelHeatmapProps> = ({
                             {getPerformanceLevelDescription(
                               cellData.performance_level
                             )}
-                          </div>
-                          <div>
-                            Trend:{" "}
-                            {cellData.trend === "up"
-                              ? "↗️ Improving"
-                              : cellData.trend === "down"
-                              ? "↘️ Declining"
-                              : "→ Stable"}
                           </div>
                         </div>
                       </TooltipContent>
@@ -343,7 +333,7 @@ const FunnelHeatmap: React.FC<FunnelHeatmapProps> = ({
                 {data.summary.best_combination.stage}
               </div>
               <div className="text-sm text-green-700 dark:text-green-300">
-                {data.summary.best_combination.score}% weighted score
+                {data.summary.best_combination.score}% average score
               </div>
             </div>
 
@@ -360,7 +350,7 @@ const FunnelHeatmap: React.FC<FunnelHeatmapProps> = ({
                 {data.summary.worst_combination.stage}
               </div>
               <div className="text-sm text-red-700 dark:text-red-300">
-                {data.summary.worst_combination.score}% weighted score
+                {data.summary.worst_combination.score}% average score
               </div>
             </div>
           </div>
@@ -385,7 +375,7 @@ const FunnelHeatmap: React.FC<FunnelHeatmapProps> = ({
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                   <div>
                     <div className="text-blue-600 dark:text-blue-400 font-medium">
-                      Weighted Score
+                      Overall Score
                     </div>
                     <div className="text-blue-900 dark:text-blue-100 text-lg font-bold">
                       {cellData.weightedScore}%
