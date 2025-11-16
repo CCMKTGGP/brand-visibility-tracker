@@ -2,15 +2,13 @@
 import React, { useState, useEffect } from "react";
 import moment from "moment";
 import {
-  Plus,
   Filter,
-  TrendingUp,
-  TrendingDown,
-  Minus,
   Building2,
   BarChart3,
   Activity,
   Target,
+  Play,
+  Clock,
 } from "lucide-react";
 import {
   Select,
@@ -27,7 +25,17 @@ import Loading from "@/components/loading";
 import FunnelHeatmap from "@/components/funnel-heatmap";
 import { models, periods, stages } from "@/constants/dashboard";
 import { Button } from "@/components/ui/button";
-import { isUserOwner } from "@/utils/checkUserRole";
+import { Badge } from "@/components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import AnalysisStartedModal from "@/components/analysis-started-modal";
+import { AnalysisModelSelector } from "@/components/analysis-model-selector";
+import { useAnalysisStatus } from "@/hooks/use-analysis-status";
+import { isUserOwner, isUserViewer } from "@/utils/checkUserRole";
 
 const DashboardPage = ({
   userId,
@@ -37,6 +45,12 @@ const DashboardPage = ({
   brandId: string;
 }) => {
   const { user } = useUserContext();
+  const { isRunning, currentAnalysis, refreshAnalysisStatus } =
+    useAnalysisStatus({
+      brandId,
+      userId,
+      refreshInterval: 20000,
+    });
 
   const [selectedModel, setSelectedModel] = useState("all");
   const [selectedStage, setSelectedStage] = useState("all");
@@ -46,6 +60,9 @@ const DashboardPage = ({
   );
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [showAnalysisModal, setShowAnalysisModal] = useState(false);
+  const [showAnalysisSelectorModal, setShowAnalysisSelectorModal] =
+    useState(false);
 
   // Fetch dashboard data
   useEffect(() => {
@@ -150,69 +167,28 @@ const DashboardPage = ({
     return "text-red-700 dark:text-red-400";
   };
 
-  const getTrendIcon = (trend: "up" | "down" | "neutral") => {
-    switch (trend) {
-      case "up":
-        return <TrendingUp className="w-4 h-4 text-green-500" />;
-      case "down":
-        return <TrendingDown className="w-4 h-4 text-red-500" />;
-      default:
-        return <Minus className="w-4 h-4 text-gray-500" />;
-    }
-  };
-
-  const getTrendColor = (trend: "up" | "down" | "neutral") => {
-    switch (trend) {
-      case "up":
-        return "text-green-600 dark:text-green-400";
-      case "down":
-        return "text-red-600 dark:text-red-400";
-      default:
-        return "text-gray-600 dark:text-gray-400";
-    }
-  };
-
   const MetricCard: React.FC<{
     title: string;
     value: string | number;
     subtitle?: string;
     icon: React.ReactNode;
-    trend?: { value: number; isPositive: boolean };
-  }> = ({ title, value, subtitle, icon, trend }) => (
+  }> = ({ title, value, subtitle, icon }) => (
     <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center">
-          <div className="p-2 bg-primary/10 rounded-lg">{icon}</div>
-          <div className="ml-4">
-            <h3 className="text-sm font-medium text-gray-600 dark:text-gray-400">
-              {title}
-            </h3>
-            <p className="text-2xl font-bold text-gray-900 dark:text-white">
-              {value}
+      <div className="flex items-center">
+        <div className="p-2 bg-primary/10 rounded-lg">{icon}</div>
+        <div className="ml-4">
+          <h3 className="text-sm font-medium text-gray-600 dark:text-gray-400">
+            {title}
+          </h3>
+          <p className="text-2xl font-bold text-gray-900 dark:text-white">
+            {value}
+          </p>
+          {subtitle && (
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              {subtitle}
             </p>
-            {subtitle && (
-              <p className="text-sm text-gray-500 dark:text-gray-400">
-                {subtitle}
-              </p>
-            )}
-          </div>
+          )}
         </div>
-        {trend && (
-          <div
-            className={`flex items-center ${
-              trend.isPositive ? "text-green-600" : "text-red-600"
-            }`}
-          >
-            {trend.isPositive ? (
-              <TrendingUp className="w-4 h-4" />
-            ) : (
-              <TrendingDown className="w-4 h-4" />
-            )}
-            <span className="ml-1 text-sm font-medium">
-              {Math.abs(trend.value)}%
-            </span>
-          </div>
-        )}
       </div>
     </div>
   );
@@ -284,14 +260,6 @@ const DashboardPage = ({
         <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
           Sentiment Analysis
         </h3>
-        <div
-          className={`flex items-center space-x-1 ${getTrendColor(
-            sentiment.trend
-          )}`}
-        >
-          {getTrendIcon(sentiment.trend)}
-          <span className="text-sm font-medium">{sentiment.percentage}%</span>
-        </div>
       </div>
 
       <div className="space-y-4">
@@ -485,13 +453,31 @@ const DashboardPage = ({
             </p>
           </div>
         </div>
-        <Link
-          href={`/${userId}/brands/create-brand`}
-          className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-primary hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-colors"
-        >
-          <Plus className="w-4 h-4 mr-2" />
-          Add Brand
-        </Link>
+        {!isUserViewer(user) && (
+          <div className="flex items-center gap-3">
+            <Button
+              onClick={() => setShowAnalysisSelectorModal(true)}
+              disabled={isRunning}
+              className={`flex items-center gap-2 ${
+                isRunning
+                  ? "bg-gray-400 cursor-not-allowed"
+                  : "bg-primary hover:bg-primary/90"
+              }`}
+            >
+              {isRunning ? (
+                <>
+                  <Clock className="w-4 h-4 animate-pulse" />
+                  Analysis Running...
+                </>
+              ) : (
+                <>
+                  <Play className="w-4 h-4" />
+                  Trigger Analysis
+                </>
+              )}
+            </Button>
+          </div>
+        )}
       </div>
 
       {/* Brand Info Header */}
@@ -537,6 +523,55 @@ const DashboardPage = ({
           </div>
         </div>
       </div>
+
+      {/* Running Analysis Status */}
+      {isRunning && currentAnalysis && (
+        <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+          <div className="flex items-start gap-3">
+            <Clock className="h-5 w-5 text-blue-600 dark:text-blue-400 mt-0.5 animate-pulse" />
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 mb-2">
+                <h4 className="font-medium text-blue-900 dark:text-blue-100">
+                  Analysis in Progress
+                </h4>
+                <Badge
+                  variant="secondary"
+                  className="bg-blue-100 text-blue-800 dark:bg-blue-800 dark:text-blue-100"
+                >
+                  Running
+                </Badge>
+              </div>
+              <p className="text-sm text-blue-700 dark:text-blue-300 mb-2">
+                {currentAnalysis?.progress?.current_task ||
+                  "Processing analysis..."}
+              </p>
+              {currentAnalysis.progress && (
+                <div className="space-y-2">
+                  <div className="flex justify-between text-xs text-blue-600 dark:text-blue-400">
+                    <span>Progress</span>
+                    <span>
+                      {currentAnalysis.progress.completed_tasks} /{" "}
+                      {currentAnalysis.progress.total_tasks}
+                    </span>
+                  </div>
+                  <div className="w-full bg-blue-200 dark:bg-blue-800 rounded-full h-2">
+                    <div
+                      className="bg-blue-600 dark:bg-blue-400 h-2 rounded-full transition-all duration-300"
+                      style={{
+                        width: `${
+                          (currentAnalysis.progress.completed_tasks /
+                            currentAnalysis.progress.total_tasks) *
+                          100
+                        }%`,
+                      }}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Filters */}
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
@@ -638,10 +673,6 @@ const DashboardPage = ({
           )}%`}
           subtitle="Average score"
           icon={<Target className="w-5 h-5 text-primary" />}
-          trend={{
-            value: selectedBrand.sentiment.percentage,
-            isPositive: selectedBrand.sentiment.trend === "up",
-          }}
         />
         <MetricCard
           title="Success Rate"
@@ -677,6 +708,36 @@ const DashboardPage = ({
         <ModelPerformance performance={selectedBrand.modelPerformance} />
         <WeeklyTrend data={selectedBrand.weeklyData} />
       </div>
+
+      {/* Analysis Model Selector Modal */}
+      <Dialog
+        open={showAnalysisSelectorModal}
+        onOpenChange={setShowAnalysisSelectorModal}
+      >
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Configure Analysis</DialogTitle>
+          </DialogHeader>
+          <div className="mt-4">
+            <AnalysisModelSelector
+              brandId={brandId}
+              onAnalysisStart={() => {
+                setShowAnalysisSelectorModal(false);
+                setShowAnalysisModal(true);
+                refreshAnalysisStatus();
+              }}
+            />
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Analysis Started Modal */}
+      <AnalysisStartedModal
+        isOpen={showAnalysisModal}
+        onClose={() => setShowAnalysisModal(false)}
+        brandId={brandId}
+        userEmail={user?.email}
+      />
     </div>
   );
 };

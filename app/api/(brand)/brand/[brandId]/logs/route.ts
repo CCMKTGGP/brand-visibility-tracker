@@ -281,9 +281,9 @@ export const GET = async (
         break;
     }
 
-    // Build filter
+    // Build filter - ensure brandId is properly converted to ObjectId
     const filter: any = {
-      brand_id: brandId,
+      brand_id: new Types.ObjectId(brandId),
     };
 
     // Only add date filter if not fetching all data
@@ -321,82 +321,136 @@ export const GET = async (
       sortOptions.success_rate = sortOrder === "asc" ? 1 : -1;
     }
 
-    // Get logs with pagination
-    const [logs, totalCount] = await Promise.all([
-      MultiPromptAnalysis.find(filter)
-        .populate({
-          path: "metadata.user_id",
-          select: "full_name email",
-        })
-        .sort(sortOptions)
-        .skip(skip)
-        .limit(limitNum)
-        .lean(),
-      MultiPromptAnalysis.countDocuments(filter),
+    // Single optimized aggregation pipeline for logs with user data and transformation
+    const logsAggregation = await MultiPromptAnalysis.aggregate([
+      // Stage 1: Match logs with filters
+      {
+        $match: filter,
+      },
+
+      // Stage 2: Join with user data
+      {
+        $lookup: {
+          from: "users",
+          localField: "metadata.user_id",
+          foreignField: "_id",
+          as: "user",
+          pipeline: [
+            {
+              $project: {
+                full_name: 1,
+                email: 1,
+              },
+            },
+          ],
+        },
+      },
+
+      // Stage 3: Use $facet to get paginated data and total count
+      {
+        $facet: {
+          // Paginated logs with transformation
+          logs: [
+            { $sort: sortOptions },
+            { $skip: skip },
+            { $limit: limitNum },
+            {
+              $project: {
+                id: { $toString: "$_id" },
+                timestamp: {
+                  $dateToString: {
+                    date: "$createdAt",
+                    format: "%Y-%m-%dT%H:%M:%S.%LZ",
+                  },
+                },
+                model: 1,
+                stage: 1,
+                score: "$overall_score",
+                weightedScore: "$weighted_score",
+                responseTime: "$total_response_time",
+                successRate: "$success_rate",
+                status: 1,
+                sentiment: {
+                  overall: "$aggregated_sentiment.overall",
+                  confidence: "$aggregated_sentiment.confidence",
+                  distribution: {
+                    positive: "$aggregated_sentiment.distribution.positive",
+                    neutral: "$aggregated_sentiment.distribution.neutral",
+                    negative: "$aggregated_sentiment.distribution.negative",
+                    stronglyPositive:
+                      "$aggregated_sentiment.distribution.strongly_positive",
+                  },
+                },
+                promptResults: {
+                  $map: {
+                    input: "$prompt_results",
+                    as: "result",
+                    in: {
+                      promptId: "$$result.prompt_id",
+                      promptText: "$$result.prompt_text",
+                      score: "$$result.score",
+                      weightedScore: "$$result.weighted_score",
+                      mentionPosition: "$$result.mention_position",
+                      response: "$$result.response",
+                      responseTime: "$$result.response_time",
+                      sentiment: {
+                        overall: "$$result.sentiment.overall",
+                        confidence: "$$result.sentiment.confidence",
+                        distribution: {
+                          positive: "$$result.sentiment.distribution.positive",
+                          neutral: "$$result.sentiment.distribution.neutral",
+                          negative: "$$result.sentiment.distribution.negative",
+                          stronglyPositive:
+                            "$$result.sentiment.distribution.strongly_positive",
+                        },
+                      },
+                      status: "$$result.status",
+                    },
+                  },
+                },
+                metadata: {
+                  userId: { $toString: "$metadata.user_id" },
+                  userName: {
+                    $ifNull: [
+                      { $arrayElemAt: ["$user.full_name", 0] },
+                      "Unknown User",
+                    ],
+                  },
+                  userEmail: {
+                    $ifNull: [{ $arrayElemAt: ["$user.email", 0] }, ""],
+                  },
+                  triggerType: "$metadata.trigger_type",
+                  version: "$metadata.version",
+                  totalPrompts: "$metadata.total_prompts",
+                  successfulPrompts: "$metadata.successful_prompts",
+                },
+              },
+            },
+          ],
+
+          // Total count
+          totalCount: [{ $count: "total" }],
+        },
+      },
     ]);
 
-    // Transform logs to match frontend expectations for multi-prompt analysis
-    const transformedLogs = logs.map((log) => ({
-      id: (log._id as any)?.toString?.() ?? "",
-      timestamp:
-        log.createdAt instanceof Date ? log.createdAt.toISOString() : "",
-      model: log.model,
-      stage: log.stage,
-      score: log.overall_score,
-      weightedScore: log.weighted_score,
-      responseTime: log.total_response_time,
-      successRate: log.success_rate,
-      status: log.status,
-      sentiment: {
-        overall: log.aggregated_sentiment.overall,
-        confidence: log.aggregated_sentiment.confidence,
-        distribution: {
-          positive: log.aggregated_sentiment.distribution.positive,
-          neutral: log.aggregated_sentiment.distribution.neutral,
-          negative: log.aggregated_sentiment.distribution.negative,
-          stronglyPositive:
-            log.aggregated_sentiment.distribution.strongly_positive,
-        },
-      },
-      promptResults: log.prompt_results.map((result: any) => ({
-        promptId: result.prompt_id,
-        promptText: result.prompt_text,
-        score: result.score,
-        weightedScore: result.weighted_score,
-        mentionPosition: result.mention_position,
-        response: result.response,
-        responseTime: result.response_time,
-        sentiment: {
-          overall: result.sentiment.overall,
-          confidence: result.sentiment.confidence,
-          distribution: {
-            positive: result.sentiment.distribution.positive,
-            neutral: result.sentiment.distribution.neutral,
-            negative: result.sentiment.distribution.negative,
-            stronglyPositive: result.sentiment.distribution.strongly_positive,
-          },
-        },
-        status: result.status,
-      })),
-      metadata: {
-        userId:
-          log.metadata.user_id._id?.toString() ||
-          log.metadata.user_id.toString(),
-        userName: log.metadata.user_id.full_name || "Unknown User",
-        userEmail: log.metadata.user_id.email || "",
-        triggerType: log.metadata.trigger_type,
-        version: log.metadata.version,
-        totalPrompts: log.metadata.total_prompts,
-        successfulPrompts: log.metadata.successful_prompts,
-      },
-    }));
+    // Extract results from aggregation
+    const logsData = logsAggregation[0];
+    const transformedLogs = logsData.logs || [];
+    const totalCount = logsData.totalCount[0]?.total || 0;
 
     // Get filter options
     const [availableModels, availableStages, availableStatuses] =
       await Promise.all([
-        MultiPromptAnalysis.distinct("model", { brand_id: brandId }),
-        MultiPromptAnalysis.distinct("stage", { brand_id: brandId }),
-        MultiPromptAnalysis.distinct("status", { brand_id: brandId }),
+        MultiPromptAnalysis.distinct("model", {
+          brand_id: new Types.ObjectId(brandId),
+        }),
+        MultiPromptAnalysis.distinct("stage", {
+          brand_id: new Types.ObjectId(brandId),
+        }),
+        MultiPromptAnalysis.distinct("status", {
+          brand_id: new Types.ObjectId(brandId),
+        }),
       ]);
 
     // Calculate pagination info

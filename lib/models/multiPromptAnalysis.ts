@@ -254,17 +254,60 @@ const MultiPromptAnalysisSchema = new Schema<IMultiPromptAnalysis>(
   }
 );
 
-// Compound indexes for efficient querying
-MultiPromptAnalysisSchema.index({ brand_id: 1, createdAt: -1 });
-MultiPromptAnalysisSchema.index({ brand_id: 1, model: 1, stage: 1 });
+// Optimized compound indexes for efficient querying and aggregations
+// Primary index for dashboard API - covers most common queries with filters
 MultiPromptAnalysisSchema.index({
   brand_id: 1,
   createdAt: -1,
   model: 1,
   stage: 1,
+  status: 1,
 });
-MultiPromptAnalysisSchema.index({ "metadata.user_id": 1, createdAt: -1 });
-MultiPromptAnalysisSchema.index({ brand_id: 1, stage: 1, createdAt: -1 });
+
+// Index for matrix API aggregations - optimized for grouping by model and stage
+MultiPromptAnalysisSchema.index({
+  brand_id: 1,
+  model: 1,
+  stage: 1,
+  createdAt: -1,
+});
+
+// Index for logs API - supports filtering and sorting
+MultiPromptAnalysisSchema.index({
+  brand_id: 1,
+  createdAt: -1,
+  status: 1,
+});
+
+// Index for trend calculations in dashboard API
+MultiPromptAnalysisSchema.index({
+  brand_id: 1,
+  stage: 1,
+  model: 1,
+  createdAt: -1,
+  status: 1,
+});
+
+// Index for user-specific queries
+MultiPromptAnalysisSchema.index({
+  "metadata.user_id": 1,
+  createdAt: -1,
+});
+
+// Text index for search functionality in logs API
+MultiPromptAnalysisSchema.index({
+  "prompt_results.prompt_text": "text",
+  "prompt_results.response": "text",
+});
+
+// Sparse index for performance optimization on weighted scores
+MultiPromptAnalysisSchema.index(
+  {
+    brand_id: 1,
+    weighted_score: -1,
+  },
+  { sparse: true }
+);
 
 const MultiPromptAnalysis =
   models.MultiPromptAnalysis ||
