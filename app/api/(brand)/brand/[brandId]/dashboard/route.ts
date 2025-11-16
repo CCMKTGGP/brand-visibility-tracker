@@ -116,7 +116,7 @@ export const GET = async (
 
     // Build analysis filter
     const analysisFilter: any = {
-      brand_id: brandId,
+      brand_id: new Types.ObjectId(brandId),
     };
 
     // Only add date filter if not fetching all data
@@ -131,178 +131,212 @@ export const GET = async (
       analysisFilter.stage = stage;
     }
 
-    // Get current period analytics using multi-prompt analysis
-    const analysisData = await MultiPromptAnalysis.find(analysisFilter).sort({
-      createdAt: -1,
-    });
+    // Single optimized aggregation pipeline to calculate all dashboard metrics
+    const dashboardAggregation = await MultiPromptAnalysis.aggregate([
+      // Stage 1: Match current period data with filters
+      {
+        $match: analysisFilter,
+      },
 
-    // Calculate aggregated metrics using multi-prompt analysis data
-    const totalAnalyses = analysisData.length;
-    const avgOverallScore =
-      totalAnalyses > 0
-        ? analysisData.reduce((sum, item) => sum + item.overall_score, 0) /
-          totalAnalyses
-        : 0;
-    const avgWeightedScore =
-      totalAnalyses > 0
-        ? analysisData.reduce((sum, item) => sum + item.weighted_score, 0) /
-          totalAnalyses
-        : 0;
-    const avgResponseTime =
-      totalAnalyses > 0
-        ? analysisData.reduce(
-            (sum, item) => sum + item.total_response_time,
-            0
-          ) / totalAnalyses
-        : 0;
-    const successRate =
-      totalAnalyses > 0
-        ? analysisData.reduce((sum, item) => sum + item.success_rate, 0) /
-          totalAnalyses
-        : 0;
+      // Stage 2: Use $facet to calculate multiple metrics in parallel
+      {
+        $facet: {
+          // Current period metrics
+          currentMetrics: [
+            {
+              $group: {
+                _id: null,
+                totalAnalyses: { $sum: 1 },
+                avgOverallScore: { $avg: "$overall_score" },
+                avgWeightedScore: { $avg: "$weighted_score" },
+                avgResponseTime: { $avg: "$total_response_time" },
+                avgSuccessRate: { $avg: "$success_rate" },
+                totalPrompts: { $sum: "$metadata.total_prompts" },
+                lastUpdated: { $max: "$createdAt" },
+              },
+            },
+          ],
 
-    // Calculate total prompts processed across all analyses
-    const totalPromptsProcessed = analysisData.reduce(
-      (sum, item) => sum + item.metadata.total_prompts,
-      0
-    );
+          // Scores by stage
+          stageScores: [
+            {
+              $group: {
+                _id: "$stage",
+                avgScore: { $avg: "$weighted_score" },
+                count: { $sum: 1 },
+              },
+            },
+          ],
 
-    // Calculate scores by stage
-    const scores = {
-      TOFU: 0,
-      MOFU: 0,
-      BOFU: 0,
-      EVFU: 0,
+          // Model performance
+          modelPerformance: [
+            {
+              $group: {
+                _id: "$model",
+                avgScore: { $avg: "$weighted_score" },
+                totalPrompts: { $sum: 1 },
+              },
+            },
+          ],
+
+          // Sentiment analysis
+          sentimentData: [
+            {
+              $group: {
+                _id: null,
+                avgPositive: {
+                  $avg: "$aggregated_sentiment.distribution.positive",
+                },
+                avgNeutral: {
+                  $avg: "$aggregated_sentiment.distribution.neutral",
+                },
+                avgNegative: {
+                  $avg: "$aggregated_sentiment.distribution.negative",
+                },
+                avgStronglyPositive: {
+                  $avg: "$aggregated_sentiment.distribution.strongly_positive",
+                },
+              },
+            },
+          ],
+
+          // Weekly trend data (last 7 days)
+          weeklyTrend: [
+            {
+              $addFields: {
+                dayOfWeek: { $dayOfWeek: "$createdAt" },
+                dateOnly: {
+                  $dateToString: { format: "%Y-%m-%d", date: "$createdAt" },
+                },
+              },
+            },
+            {
+              $group: {
+                _id: "$dateOnly",
+                avgScore: { $avg: "$weighted_score" },
+                count: { $sum: 1 },
+                date: { $first: "$createdAt" },
+              },
+            },
+            { $sort: { _id: 1 } },
+            { $limit: 7 },
+          ],
+
+          // Heatmap matrix data (stage vs model combinations)
+          heatmapMatrix: [
+            {
+              $group: {
+                _id: {
+                  stage: "$stage",
+                  model: "$model",
+                },
+                avgOverallScore: { $avg: "$overall_score" },
+                avgWeightedScore: { $avg: "$weighted_score" },
+                avgSuccessRate: { $avg: "$success_rate" },
+                analyses: { $sum: 1 },
+              },
+            },
+            {
+              $addFields: {
+                performance_level: {
+                  $switch: {
+                    branches: [
+                      {
+                        case: { $gte: ["$avgWeightedScore", 80] },
+                        then: "excellent",
+                      },
+                      {
+                        case: { $gte: ["$avgWeightedScore", 60] },
+                        then: "good",
+                      },
+                      {
+                        case: { $gte: ["$avgWeightedScore", 40] },
+                        then: "fair",
+                      },
+                    ],
+                    default: "poor",
+                  },
+                },
+              },
+            },
+          ],
+        },
+      },
+    ]);
+
+    // Extract results from aggregation
+    const currentData = dashboardAggregation[0];
+
+    // Process current metrics - handle case where aggregation returns no data
+    const currentMetrics = currentData?.currentMetrics?.[0] || {
+      totalAnalyses: 0,
+      avgOverallScore: 0,
+      avgWeightedScore: 0,
+      avgResponseTime: 0,
+      avgSuccessRate: 0,
+      totalPrompts: 0,
+      lastUpdated: new Date(),
     };
 
-    const stageCounts: Record<keyof typeof scores, number> = {
-      TOFU: 0,
-      MOFU: 0,
-      BOFU: 0,
-      EVFU: 0,
-    };
-    analysisData.forEach(
-      (item: { stage: keyof typeof scores; weighted_score: number }) => {
-        if (item.stage in scores) {
-          scores[item.stage] += item.weighted_score; // Use weighted score
-          stageCounts[item.stage]++;
-        }
+    // Process stage scores
+    const scores = { TOFU: 0, MOFU: 0, BOFU: 0, EVFU: 0 };
+    (currentData?.stageScores || []).forEach((stage: any) => {
+      if (stage._id in scores) {
+        scores[stage._id as keyof typeof scores] = Math.round(
+          stage.avgScore || 0
+        );
       }
-    );
-
-    Object.keys(scores).forEach((stageKey) => {
-      const stage = stageKey as keyof typeof scores;
-      scores[stage] =
-        stageCounts[stage] > 0 ? scores[stage] / stageCounts[stage] : 0;
     });
 
-    // Calculate sentiment analysis
-    let sentimentData = {
-      positive: 0,
-      neutral: 0,
-      negative: 0,
-      stronglyPositive: 0,
-    };
-    let sentimentCount = 0;
-
-    analysisData.forEach((item) => {
-      sentimentData.positive += item.aggregated_sentiment.distribution.positive;
-      sentimentData.neutral += item.aggregated_sentiment.distribution.neutral;
-      sentimentData.negative += item.aggregated_sentiment.distribution.negative;
-      sentimentData.stronglyPositive +=
-        item.aggregated_sentiment.distribution.strongly_positive;
-      sentimentCount++;
-    });
-
-    if (sentimentCount > 0) {
-      sentimentData = {
-        positive: sentimentData.positive / sentimentCount,
-        neutral: sentimentData.neutral / sentimentCount,
-        negative: sentimentData.negative / sentimentCount,
-        stronglyPositive: sentimentData.stronglyPositive / sentimentCount,
-      };
-    }
-
-    // Calculate sentiment trend using weighted scores
-    const recentData = analysisData.slice(0, Math.floor(totalAnalyses / 2));
-    const olderData = analysisData.slice(Math.floor(totalAnalyses / 2));
-
-    let trend: "up" | "down" | "neutral" = "neutral";
-    let trendPercentage = 0;
-
-    if (recentData.length > 0 && olderData.length > 0) {
-      const recentAvg =
-        recentData.reduce((sum, item) => sum + item.weighted_score, 0) /
-        recentData.length;
-      const olderAvg =
-        olderData.reduce((sum, item) => sum + item.weighted_score, 0) /
-        olderData.length;
-
-      const difference = recentAvg - olderAvg;
-      trendPercentage = Math.abs((difference / olderAvg) * 100);
-
-      if (difference > 0.5) trend = "up";
-      else if (difference < -0.5) trend = "down";
-    }
-
-    // Calculate model performance
+    // Process model performance
     const modelPerformance = {
       ChatGPT: { score: 0, prompts: 0 },
       Claude: { score: 0, prompts: 0 },
       Gemini: { score: 0, prompts: 0 },
     };
-
-    analysisData.forEach((item) => {
-      const model = item.model as keyof typeof modelPerformance;
-      modelPerformance[model].score += item.weighted_score; // Use weighted score
-      modelPerformance[model].prompts++;
-    });
-
-    // Calculate averages for model performance
-    Object.keys(modelPerformance).forEach((modelKey) => {
-      const model = modelKey as keyof typeof modelPerformance;
-      if (modelPerformance[model].prompts > 0) {
-        modelPerformance[model].score =
-          modelPerformance[model].score / modelPerformance[model].prompts;
+    (currentData?.modelPerformance || []).forEach((model: any) => {
+      if (model._id in modelPerformance) {
+        modelPerformance[model._id as keyof typeof modelPerformance] = {
+          score: Math.round(model.avgScore || 0),
+          prompts: model.totalPrompts || 0,
+        };
       }
     });
 
-    // Get weekly trend data (last 7 days)
+    // Process sentiment data
+    const sentimentResult = currentData?.sentimentData?.[0] || {
+      avgPositive: 0,
+      avgNeutral: 0,
+      avgNegative: 0,
+      avgStronglyPositive: 0,
+    };
+
+    // Process weekly trend data
     const weeklyData = {
       labels: [] as string[],
       scores: [] as number[],
       prompts: [] as number[],
     };
 
+    // Fill in last 7 days (handle missing days)
     for (let i = 6; i >= 0; i--) {
       const date = new Date();
       date.setDate(date.getDate() - i);
-      const dayStart = new Date(date.setHours(0, 0, 0, 0));
-      const dayEnd = new Date(date.setHours(23, 59, 59, 999));
+      const dateStr = date.toISOString().split("T")[0];
+      const dayLabel = date.toLocaleDateString("en-US", { weekday: "short" });
 
-      const dayData = analysisData.filter(
-        (item) => item.createdAt >= dayStart && item.createdAt <= dayEnd
+      const dayData = (currentData?.weeklyTrend || []).find(
+        (item: any) => item._id === dateStr
       );
 
-      const dayLabel = date.toLocaleDateString("en-US", { weekday: "short" });
-      const dayAvgScore =
-        dayData.length > 0
-          ? dayData.reduce((sum, item) => sum + item.weighted_score, 0) /
-            dayData.length
-          : 0;
-
       weeklyData.labels.push(dayLabel);
-      weeklyData.scores.push(Math.round(dayAvgScore));
-      weeklyData.prompts.push(dayData.length);
+      weeklyData.scores.push(dayData ? Math.round(dayData.avgScore || 0) : 0);
+      weeklyData.prompts.push(dayData ? dayData.count || 0 : 0);
     }
 
-    // Generate heatmap data (Stage vs Model performance matrix)
-    const stages: (keyof typeof scores)[] = ["TOFU", "MOFU", "BOFU", "EVFU"];
-    const models: (keyof typeof modelPerformance)[] = [
-      "ChatGPT",
-      "Claude",
-      "Gemini",
-    ];
+    // Process heatmap data with trend calculation
+    const stages = ["TOFU", "MOFU", "BOFU", "EVFU"];
+    const models = ["ChatGPT", "Claude", "Gemini"];
 
     const heatmapData = {
       stages,
@@ -314,7 +348,6 @@ export const GET = async (
         weightedScore: number;
         analyses: number;
         performance_level: "excellent" | "good" | "fair" | "poor";
-        trend: "up" | "down" | "neutral";
         confidence: number;
       }>,
       summary: {
@@ -325,14 +358,20 @@ export const GET = async (
       },
     };
 
-    // Calculate matrix data for each stage-model combination
+    // Create heatmap lookup map
+    const heatmapMap = new Map();
+    (currentData?.heatmapMatrix || []).forEach((item: any) => {
+      const key = `${item._id.stage}-${item._id.model}`;
+      heatmapMap.set(key, item);
+    });
+
+    // Build matrix data for all stage-model combinations
     for (const stage of stages) {
       for (const model of models) {
-        const stageModelData = analysisData.filter(
-          (item) => item.stage === stage && item.model === model
-        );
+        const key = `${stage}-${model}`;
+        const currentItem = heatmapMap.get(key);
 
-        if (stageModelData.length === 0) {
+        if (!currentItem) {
           heatmapData.matrix.push({
             stage,
             model,
@@ -340,80 +379,42 @@ export const GET = async (
             weightedScore: 0,
             analyses: 0,
             performance_level: "poor",
-            trend: "neutral",
             confidence: 0,
           });
           continue;
         }
 
-        const avgScore =
-          stageModelData.reduce((sum, item) => sum + item.overall_score, 0) /
-          stageModelData.length;
-        const avgWeightedScore =
-          stageModelData.reduce((sum, item) => sum + item.weighted_score, 0) /
-          stageModelData.length;
-        const avgSuccessRate =
-          stageModelData.reduce((sum, item) => sum + item.success_rate, 0) /
-          stageModelData.length;
-
-        // Determine performance level
-        let performance_level: "excellent" | "good" | "fair" | "poor";
-        if (avgWeightedScore >= 80) performance_level = "excellent";
-        else if (avgWeightedScore >= 60) performance_level = "good";
-        else if (avgWeightedScore >= 40) performance_level = "fair";
-        else performance_level = "poor";
-
-        // Calculate trend (compare with previous period)
-        const previousPeriodStart = new Date(
-          startDate.getTime() - (endDate.getTime() - startDate.getTime())
-        );
-        const previousPeriodEnd = new Date(startDate);
-
-        const previousData = await MultiPromptAnalysis.find({
-          brand_id: brandId,
+        const matrixItem = {
           stage,
           model,
-          createdAt: { $gte: previousPeriodStart, $lte: previousPeriodEnd },
-          status: "success",
-        });
+          score: Math.round(currentItem.avgOverallScore * 100) / 100,
+          weightedScore: Math.round(currentItem.avgWeightedScore * 100) / 100,
+          analyses: currentItem.analyses,
+          performance_level: currentItem.performance_level,
+          confidence: Math.round(currentItem.avgSuccessRate * 100) / 100,
+        };
 
-        const previousAvgScore =
-          previousData.length > 0
-            ? previousData.reduce((sum, item) => sum + item.weighted_score, 0) /
-              previousData.length
-            : avgWeightedScore;
-
-        const change =
-          previousAvgScore > 0
-            ? ((avgWeightedScore - previousAvgScore) / previousAvgScore) * 100
-            : 0;
-        const trend: "up" | "down" | "neutral" =
-          change > 5 ? "up" : change < -5 ? "down" : "neutral";
-
-        heatmapData.matrix.push({
-          stage,
-          model,
-          score: Math.round(avgScore * 100) / 100,
-          weightedScore: Math.round(avgWeightedScore * 100) / 100,
-          analyses: stageModelData.length,
-          performance_level,
-          trend,
-          confidence: Math.round(avgSuccessRate * 100) / 100,
-        });
+        heatmapData.matrix.push(matrixItem);
 
         // Track best and worst combinations
-        if (avgWeightedScore > heatmapData.summary.best_combination.score) {
+        if (
+          currentItem.avgWeightedScore >
+          heatmapData.summary.best_combination.score
+        ) {
           heatmapData.summary.best_combination = {
             stage,
             model,
-            score: Math.round(avgWeightedScore * 100) / 100,
+            score: Math.round(currentItem.avgWeightedScore * 100) / 100,
           };
         }
-        if (avgWeightedScore < heatmapData.summary.worst_combination.score) {
+        if (
+          currentItem.avgWeightedScore <
+          heatmapData.summary.worst_combination.score
+        ) {
           heatmapData.summary.worst_combination = {
             stage,
             model,
-            score: Math.round(avgWeightedScore * 100) / 100,
+            score: Math.round(currentItem.avgWeightedScore * 100) / 100,
           };
         }
       }
@@ -446,6 +447,7 @@ export const GET = async (
         Math.round(avgModelScore * 100) / 100;
     }
 
+    // Build final response with processed data
     const response = {
       brand: {
         id: brand._id,
@@ -454,47 +456,28 @@ export const GET = async (
         region: brand.region,
       },
       currentPeriodMetrics: {
-        totalAnalyses: totalAnalyses,
-        totalPrompts: totalPromptsProcessed,
-        avgOverallScore: Math.round(avgOverallScore * 100) / 100,
-        avgWeightedScore: Math.round(avgWeightedScore * 100) / 100, // Primary metric
-        avgResponseTime: Math.round(avgResponseTime * 100) / 100,
-        successRate: Math.round(successRate * 100) / 100,
+        totalAnalyses: currentMetrics.totalAnalyses,
+        totalPrompts: currentMetrics.totalPrompts,
+        avgOverallScore: Math.round(currentMetrics.avgOverallScore * 100) / 100,
+        avgWeightedScore:
+          Math.round(currentMetrics.avgWeightedScore * 100) / 100,
+        avgResponseTime: Math.round(currentMetrics.avgResponseTime * 100) / 100,
+        successRate: Math.round(currentMetrics.avgSuccessRate * 100) / 100,
         lastUpdated:
-          analysisData[0]?.createdAt?.toISOString() || new Date().toISOString(),
+          currentMetrics.lastUpdated?.toISOString() || new Date().toISOString(),
       },
-      scores: {
-        TOFU: Math.round(scores.TOFU),
-        MOFU: Math.round(scores.MOFU),
-        BOFU: Math.round(scores.BOFU),
-        EVFU: Math.round(scores.EVFU),
-      },
+      scores,
       sentiment: {
-        trend,
-        percentage: Math.round(trendPercentage),
         distribution: {
-          positive: Math.round(sentimentData.positive),
-          neutral: Math.round(sentimentData.neutral),
-          negative: Math.round(sentimentData.negative),
-          stronglyPositive: Math.round(sentimentData.stronglyPositive),
+          positive: Math.round(sentimentResult.avgPositive),
+          neutral: Math.round(sentimentResult.avgNeutral),
+          negative: Math.round(sentimentResult.avgNegative),
+          stronglyPositive: Math.round(sentimentResult.avgStronglyPositive),
         },
       },
-      modelPerformance: {
-        ChatGPT: {
-          score: Math.round(modelPerformance.ChatGPT.score),
-          prompts: modelPerformance.ChatGPT.prompts,
-        },
-        Claude: {
-          score: Math.round(modelPerformance.Claude.score),
-          prompts: modelPerformance.Claude.prompts,
-        },
-        Gemini: {
-          score: Math.round(modelPerformance.Gemini.score),
-          prompts: modelPerformance.Gemini.prompts,
-        },
-      },
+      modelPerformance,
       weeklyData,
-      heatmapData, // Add heatmap data to response
+      heatmapData,
       filters: {
         period,
         model,

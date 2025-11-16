@@ -1,16 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
-import {
-  Search,
-  Clock,
-  // CheckCircle,
-  // XCircle,
-  // AlertCircle,
-  FileText,
-  Play,
-  Filter,
-} from "lucide-react";
+import { Search, Clock, FileText, Filter } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -33,18 +24,9 @@ import {
   PaginationPrevious,
   PaginationEllipsis,
 } from "@/components/ui/pagination";
-import AnalysisStartedModal from "@/components/analysis-started-modal";
-import { AnalysisModelSelector } from "@/components/analysis-model-selector";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { useAnalysisStatus } from "@/hooks/use-analysis-status";
 import { Badge } from "@/components/ui/badge";
-import { isUserViewer } from "@/utils/checkUserRole";
 
 export default function ViewLogs({
   userId,
@@ -54,17 +36,12 @@ export default function ViewLogs({
   brandId: string;
 }) {
   const { user } = useUserContext();
-  const {
-    isRunning,
-    currentAnalysis,
-    refreshAnalysisStatus,
-    fetchUpdatedLogs,
-    setFetchUpdatedLogs,
-  } = useAnalysisStatus({
-    brandId,
-    userId,
-    refreshInterval: 20000,
-  });
+  const { isRunning, currentAnalysis, fetchUpdatedLogs, setFetchUpdatedLogs } =
+    useAnalysisStatus({
+      brandId,
+      userId,
+      refreshInterval: 20000,
+    });
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
   const [selectedModel, setSelectedModel] = useState("all");
@@ -81,9 +58,6 @@ export default function ViewLogs({
   const [expandedResponses, setExpandedResponses] = useState<Set<string>>(
     new Set()
   );
-  const [showAnalysisModal, setShowAnalysisModal] = useState(false);
-  const [showAnalysisSelectorModal, setShowAnalysisSelectorModal] =
-    useState(false);
 
   // Debounce search term
   useEffect(() => {
@@ -249,11 +223,6 @@ export default function ViewLogs({
     }
   }, [fetchUpdatedLogs, fetchLogsData]);
 
-  // Open analysis model selector modal
-  const triggerAnalysis = () => {
-    setShowAnalysisSelectorModal(true);
-  };
-
   // Loading state
   if (loading) {
     return (
@@ -318,19 +287,6 @@ export default function ViewLogs({
     return pages;
   };
 
-  // const getStatusIcon = (status: string) => {
-  //   switch (status) {
-  //     case "success":
-  //       return <CheckCircle className="w-4 h-4 text-green-500" />;
-  //     case "error":
-  //       return <XCircle className="w-4 h-4 text-red-500" />;
-  //     case "warning":
-  //       return <AlertCircle className="w-4 h-4 text-yellow-500" />;
-  //     default:
-  //       return <AlertCircle className="w-4 h-4 text-gray-500" />;
-  //   }
-  // };
-
   const getStatusColor = (status: string) => {
     switch (status) {
       case "success":
@@ -381,31 +337,6 @@ export default function ViewLogs({
             Monitor all AI interactions and responses for Brand {brandId}
           </p>
         </div>
-        {!isUserViewer(user) && (
-          <div className="flex items-center gap-3">
-            <Button
-              onClick={triggerAnalysis}
-              disabled={isRunning}
-              className={`flex items-center gap-2 ${
-                isRunning
-                  ? "bg-gray-400 cursor-not-allowed"
-                  : "bg-primary hover:bg-primary/90"
-              }`}
-            >
-              {isRunning ? (
-                <>
-                  <Clock className="w-4 h-4 animate-pulse" />
-                  Analysis Running...
-                </>
-              ) : (
-                <>
-                  <Play className="w-4 h-4" />
-                  Trigger Analysis
-                </>
-              )}
-            </Button>
-          </div>
-        )}
       </div>
 
       {/* Running Analysis Status */}
@@ -1087,39 +1018,6 @@ export default function ViewLogs({
           )}
         </div>
       </div>
-
-      {/* Analysis Model Selector Modal */}
-      <Dialog
-        open={showAnalysisSelectorModal}
-        onOpenChange={setShowAnalysisSelectorModal}
-      >
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Configure Analysis</DialogTitle>
-          </DialogHeader>
-          <div className="mt-4">
-            <AnalysisModelSelector
-              brandId={brandId}
-              onAnalysisStart={() => {
-                setShowAnalysisSelectorModal(false);
-                setShowAnalysisModal(true);
-                setTimeout(() => {
-                  setCurrentPage(1);
-                }, 2000);
-                refreshAnalysisStatus();
-              }}
-            />
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Analysis Started Modal */}
-      <AnalysisStartedModal
-        isOpen={showAnalysisModal}
-        onClose={() => setShowAnalysisModal(false)}
-        brandId={brandId}
-        userEmail={user?.email}
-      />
     </div>
   );
 }

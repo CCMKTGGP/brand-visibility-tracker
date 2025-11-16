@@ -1,15 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import {
-  TrendingUp,
-  TrendingDown,
-  Minus,
-  Info,
-  Target,
-  Activity,
-  BarChart3,
-} from "lucide-react";
+import { Info, Target, Activity, BarChart3, Minus } from "lucide-react";
 import {
   Tooltip,
   TooltipContent,
@@ -27,7 +19,6 @@ interface HeatmapData {
     weightedScore: number;
     analyses: number;
     performance_level: "excellent" | "good" | "fair" | "poor";
-    trend: "up" | "down" | "neutral";
     confidence: number;
   }>;
   summary: {
@@ -55,44 +46,39 @@ const FunnelHeatmap: React.FC<FunnelHeatmapProps> = ({
   } | null>(null);
 
   // Helper functions
-  const getScoreColor = (score: number, performanceLevel: string) => {
-    switch (performanceLevel) {
-      case "excellent":
-        return "bg-green-500 text-white";
-      case "good":
-        return "bg-green-400 text-white";
-      case "fair":
-        return "bg-yellow-400 text-gray-900";
-      case "poor":
-        return "bg-red-400 text-white";
-      default:
-        return "bg-gray-300 text-gray-700";
+  const getScoreColor = (score: number) => {
+    if (score >= 0 && score <= 16) {
+      return { backgroundColor: "#D73027", color: "white" };
+    } else if (score > 16 && score <= 33) {
+      return { backgroundColor: "#FC8D59", color: "white" };
+    } else if (score > 33 && score <= 50) {
+      return { backgroundColor: "#FEE08B", color: "black" };
+    } else if (score >= 51 && score <= 67) {
+      return { backgroundColor: "#D9EF8B", color: "black" };
+    } else if (score > 67 && score <= 83) {
+      return { backgroundColor: "#91CF60", color: "black" };
+    } else if (score > 83 && score <= 100) {
+      return { backgroundColor: "#1A9850", color: "white" };
+    } else {
+      return { backgroundColor: "#E5E7EB", color: "#374151" }; // gray fallback
     }
   };
 
-  const getScoreBorderColor = (score: number, performanceLevel: string) => {
-    switch (performanceLevel) {
-      case "excellent":
-        return "border-green-600";
-      case "good":
-        return "border-green-500";
-      case "fair":
-        return "border-yellow-500";
-      case "poor":
-        return "border-red-500";
-      default:
-        return "border-gray-400";
-    }
-  };
-
-  const getTrendIcon = (trend: "up" | "down" | "neutral") => {
-    switch (trend) {
-      case "up":
-        return <TrendingUp className="w-3 h-3 text-green-600" />;
-      case "down":
-        return <TrendingDown className="w-3 h-3 text-red-600" />;
-      default:
-        return <Minus className="w-3 h-3 text-gray-500" />;
+  const getScoreBorderColor = (score: number) => {
+    if (score >= 0 && score <= 16) {
+      return "#B91C1C"; // darker red
+    } else if (score > 16 && score <= 33) {
+      return "#EA580C"; // darker orange
+    } else if (score > 33 && score <= 50) {
+      return "#D97706"; // darker yellow
+    } else if (score > 50 && score <= 67) {
+      return "#65A30D"; // darker lime
+    } else if (score > 67 && score <= 83) {
+      return "#16A34A"; // darker green
+    } else if (score > 83 && score <= 100) {
+      return "#166534"; // darker forest green
+    } else {
+      return "#9CA3AF"; // gray fallback
     }
   };
 
@@ -112,18 +98,21 @@ const FunnelHeatmap: React.FC<FunnelHeatmapProps> = ({
     );
   };
 
-  const getPerformanceLevelDescription = (level: string) => {
-    switch (level) {
-      case "excellent":
-        return "Outstanding performance (80%+)";
-      case "good":
-        return "Good performance (60-79%)";
-      case "fair":
-        return "Fair performance (40-59%)";
-      case "poor":
-        return "Needs improvement (<40%)";
-      default:
-        return "No data available";
+  const getScoreRangeDescription = (score: number) => {
+    if (score >= 0 && score <= 16) {
+      return "Critical - Needs immediate attention (0-16%)";
+    } else if (score > 16 && score <= 33) {
+      return "Poor - Requires improvement (17-33%)";
+    } else if (score > 33 && score <= 50) {
+      return "Fair - Below average performance (34-50%)";
+    } else if (score > 50 && score <= 67) {
+      return "Good - Above average performance (51-67%)";
+    } else if (score > 67 && score <= 83) {
+      return "Very Good - Strong performance (68-83%)";
+    } else if (score > 83 && score <= 100) {
+      return "Excellent - Outstanding performance (84-100%)";
+    } else {
+      return "No data available";
     }
   };
 
@@ -217,29 +206,31 @@ const FunnelHeatmap: React.FC<FunnelHeatmapProps> = ({
                   selectedCell?.stage === stage &&
                   selectedCell?.model === model;
 
+                const colorStyle = getScoreColor(cellData.weightedScore);
+                const borderColor = getScoreBorderColor(cellData.weightedScore);
+
                 return (
                   <TooltipProvider key={`${stage}-${model}`}>
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <div
-                          className={`p-3 rounded-lg border-2 cursor-pointer transition-all duration-200 hover:scale-105 ${getScoreColor(
-                            cellData.weightedScore,
-                            cellData.performance_level
-                          )} ${getScoreBorderColor(
-                            cellData.weightedScore,
-                            cellData.performance_level
-                          )} ${
+                          className={`p-3 rounded-lg border-2 cursor-pointer transition-all duration-200 hover:scale-105 ${
                             isSelected
                               ? "ring-2 ring-blue-500 ring-offset-2"
                               : ""
                           }`}
+                          style={{
+                            backgroundColor: colorStyle.backgroundColor,
+                            color: colorStyle.color,
+                            borderColor: borderColor,
+                          }}
                           onClick={() => setSelectedCell({ stage, model })}
                         >
                           <div className="flex items-center justify-between mb-1">
                             <span className="text-lg font-bold">
                               {cellData.weightedScore}%
                             </span>
-                            {getTrendIcon(cellData.trend)}
+                            <Minus className="w-3 h-3 text-black" />
                           </div>
                           <div className="text-xs opacity-90">
                             Raw: {cellData.score}%
@@ -254,14 +245,13 @@ const FunnelHeatmap: React.FC<FunnelHeatmapProps> = ({
                           <div className="font-medium">
                             {model} - {stage}
                           </div>
-                          <div>Average Score: {cellData.score}%</div>
+                          <div>Weighted Score: {cellData.weightedScore}%</div>
+                          <div>Raw Score: {cellData.score}%</div>
                           <div>Confidence: {cellData.confidence}%</div>
                           <div>Analyses: {cellData.analyses}</div>
                           <div>
-                            Level:{" "}
-                            {getPerformanceLevelDescription(
-                              cellData.performance_level
-                            )}
+                            Range:{" "}
+                            {getScoreRangeDescription(cellData.weightedScore)}
                           </div>
                         </div>
                       </TooltipContent>
@@ -279,31 +269,61 @@ const FunnelHeatmap: React.FC<FunnelHeatmapProps> = ({
         <div className="flex items-center justify-between">
           <div>
             <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-2">
-              Performance Levels
+              Score Ranges
             </h4>
-            <div className="flex items-center space-x-4">
+            <div className="flex flex-wrap items-center gap-4">
               <div className="flex items-center space-x-1">
-                <div className="w-4 h-4 bg-green-500 rounded"></div>
+                <div
+                  className="w-4 h-4 rounded"
+                  style={{ backgroundColor: "#1A9850" }}
+                ></div>
                 <span className="text-xs text-gray-600 dark:text-gray-400">
-                  Excellent (80%+)
+                  84-100%
                 </span>
               </div>
               <div className="flex items-center space-x-1">
-                <div className="w-4 h-4 bg-green-400 rounded"></div>
+                <div
+                  className="w-4 h-4 rounded"
+                  style={{ backgroundColor: "#91CF60" }}
+                ></div>
                 <span className="text-xs text-gray-600 dark:text-gray-400">
-                  Good (60-79%)
+                  68-83%
                 </span>
               </div>
               <div className="flex items-center space-x-1">
-                <div className="w-4 h-4 bg-yellow-400 rounded"></div>
+                <div
+                  className="w-4 h-4 rounded"
+                  style={{ backgroundColor: "#D9EF8B" }}
+                ></div>
                 <span className="text-xs text-gray-600 dark:text-gray-400">
-                  Fair (40-59%)
+                  51-67%
                 </span>
               </div>
               <div className="flex items-center space-x-1">
-                <div className="w-4 h-4 bg-red-400 rounded"></div>
+                <div
+                  className="w-4 h-4 rounded"
+                  style={{ backgroundColor: "#FEE08B" }}
+                ></div>
                 <span className="text-xs text-gray-600 dark:text-gray-400">
-                  Poor (&lt;40%)
+                  34-50%
+                </span>
+              </div>
+              <div className="flex items-center space-x-1">
+                <div
+                  className="w-4 h-4 rounded"
+                  style={{ backgroundColor: "#FC8D59" }}
+                ></div>
+                <span className="text-xs text-gray-600 dark:text-gray-400">
+                  17-33%
+                </span>
+              </div>
+              <div className="flex items-center space-x-1">
+                <div
+                  className="w-4 h-4 rounded"
+                  style={{ backgroundColor: "#D73027" }}
+                ></div>
+                <span className="text-xs text-gray-600 dark:text-gray-400">
+                  0-16%
                 </span>
               </div>
             </div>

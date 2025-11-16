@@ -137,73 +137,105 @@ export const GET = async (
       analysisFilter.stage = stage;
     }
 
-    // Get aggregated matrix data by model and stage combinations using multi-prompt analysis
-    const matrixAggregation = [
+    // Single optimized aggregation using $facet to get all data in one query
+    const matrixAggregation = await MultiPromptAnalysis.aggregate([
+      // Stage 1: Match current period data
       {
         $match: analysisFilter,
       },
+
+      // Stage 2: Use $facet to calculate everything in parallel
       {
-        $group: {
-          _id: {
-            model: "$model",
-            stage: "$stage",
-          },
-          avgOverallScore: { $avg: "$overall_score" },
-          avgWeightedScore: { $avg: "$weighted_score" }, // Primary metric
-          totalAnalyses: { $sum: 1 },
-          totalPrompts: { $sum: "$metadata.total_prompts" },
-          avgResponseTime: { $avg: "$total_response_time" },
-          avgSuccessRate: { $avg: "$success_rate" },
-          weightedScores: { $push: "$weighted_score" },
-          overallScores: { $push: "$overall_score" },
-          latestCreatedAt: { $max: "$createdAt" },
+        $facet: {
+          // Paginated matrix data
+          paginatedData: [
+            {
+              $group: {
+                _id: {
+                  model: "$model",
+                  stage: "$stage",
+                },
+                avgOverallScore: { $avg: "$overall_score" },
+                avgWeightedScore: { $avg: "$weighted_score" },
+                totalAnalyses: { $sum: 1 },
+                totalPrompts: { $sum: "$metadata.total_prompts" },
+                avgResponseTime: { $avg: "$total_response_time" },
+                avgSuccessRate: { $avg: "$success_rate" },
+                latestCreatedAt: { $max: "$createdAt" },
+              },
+            },
+            {
+              $sort: {
+                "_id.model": 1,
+                "_id.stage": 1,
+              },
+            },
+            { $skip: (pageNum - 1) * limitNum },
+            { $limit: limitNum },
+          ],
+
+          // Total count of unique model-stage combinations
+          totalCount: [
+            {
+              $group: {
+                _id: {
+                  model: "$model",
+                  stage: "$stage",
+                },
+              },
+            },
+            { $count: "total" },
+          ],
+
+          // All data for best/worst calculation (without pagination)
+          allData: [
+            {
+              $group: {
+                _id: {
+                  model: "$model",
+                  stage: "$stage",
+                },
+                avgOverallScore: { $avg: "$overall_score" },
+                avgWeightedScore: { $avg: "$weighted_score" },
+                totalAnalyses: { $sum: 1 },
+                totalPrompts: { $sum: "$metadata.total_prompts" },
+                avgResponseTime: { $avg: "$total_response_time" },
+                avgSuccessRate: { $avg: "$success_rate" },
+              },
+            },
+            {
+              $sort: { avgWeightedScore: -1 },
+            },
+          ],
+
+          // Summary statistics
+          summaryStats: [
+            {
+              $group: {
+                _id: null,
+                totalAnalyses: { $sum: 1 },
+                totalPrompts: { $sum: "$metadata.total_prompts" },
+                avgWeightedScore: { $avg: "$weighted_score" },
+              },
+            },
+          ],
         },
       },
-      {
-        $sort: {
-          "_id.model": 1,
-          "_id.stage": 1,
-        },
-      },
-    ];
-
-    // Get total count of aggregated results (without pagination)
-    const totalCountAggregation = [
-      ...matrixAggregation,
-      {
-        $count: "total",
-      },
-    ];
-
-    // Add pagination to the main aggregation
-    const paginatedMatrixAggregation = [
-      ...matrixAggregation,
-      {
-        $skip: (pageNum - 1) * limitNum,
-      },
-      {
-        $limit: limitNum,
-      },
-    ];
-
-    // Check if any MultiPromptAnalysis data exists for this brand
-    const totalMultiPromptAnalysisCount =
-      await MultiPromptAnalysis.countDocuments({
-        brand_id: new Types.ObjectId(brandId),
-      });
-
-    console.log("totalMultiPromptAnalysisCount", totalMultiPromptAnalysisCount);
-
-    const [matrixResults, totalCountResult] = await Promise.all([
-      MultiPromptAnalysis.aggregate(paginatedMatrixAggregation as any[]).exec(),
-      MultiPromptAnalysis.aggregate(totalCountAggregation as any[]).exec(),
     ]);
 
-    const totalCount =
-      totalCountResult.length > 0 ? totalCountResult[0].total : 0;
+    // Extract results from aggregation
+    const currentData = matrixAggregation[0];
+    const paginatedResults = currentData.paginatedData || [];
+    const totalCount = currentData.totalCount[0]?.total || 0;
+    const allResults = currentData.allData || [];
+    const summaryStats = currentData.summaryStats[0] || {
+      totalAnalyses: 0,
+      totalPrompts: 0,
+      avgWeightedScore: 0,
+    };
 
-    // If no MultiPromptAnalysis data found, return empty response
-    if (matrixResults.length === 0) {
+    // If no data found, return empty response
+    if (paginatedResults.length === 0) {
       const response = {
         data: [],
         pagination: {
@@ -223,7 +255,7 @@ export const GET = async (
           period,
           model,
           stage,
-          availablePeriods: ["7d", "30d", "90d"],
+          availablePeriods: ["all", "7d", "30d", "90d"],
           availableModels: ["all", "ChatGPT", "Claude", "Gemini"],
           availableStages: ["all", "TOFU", "MOFU", "BOFU", "EVFU"],
           dateRange: {
@@ -243,117 +275,9 @@ export const GET = async (
       );
     }
 
-    // Calculate trend for each matrix cell (compare with previous period)
-    const previousStartDate = new Date(startDate);
-    const previousEndDate = new Date(endDate);
-    const periodDays = Math.ceil(
-      (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)
-    );
-
-    previousStartDate.setDate(previousStartDate.getDate() - periodDays);
-    previousEndDate.setDate(previousEndDate.getDate() - periodDays);
-
-    const previousFilter = {
-      ...analysisFilter,
-      createdAt: { $gte: previousStartDate, $lte: previousEndDate },
-    };
-
-    const previousMatrixAggregation = [
-      {
-        $match: previousFilter,
-      },
-      {
-        $group: {
-          _id: {
-            model: "$model",
-            stage: "$stage",
-          },
-          avgWeightedScore: { $avg: "$weighted_score" },
-        },
-      },
-    ];
-
-    const previousResults = await MultiPromptAnalysis.aggregate(
-      previousMatrixAggregation
-    );
-    const previousScoreMap = new Map();
-    previousResults.forEach((result) => {
-      const key = `${result._id.model}-${result._id.stage}`;
-      previousScoreMap.set(key, result.avgWeightedScore);
-    });
-
-    // Build matrix data with trend calculation using weighted scores
-    const matrixData = matrixResults.map((result) => {
-      const key = `${result._id.model}-${result._id.stage}`;
+    // Process paginated matrix data
+    const matrixData = paginatedResults.map((result: any) => {
       const currentWeightedScore = result.avgWeightedScore || 0;
-      const previousWeightedScore =
-        previousScoreMap.get(key) || currentWeightedScore;
-
-      let trend: "up" | "down" | "neutral" = "neutral";
-      let trendPercentage = 0;
-
-      if (previousWeightedScore > 0) {
-        const difference = currentWeightedScore - previousWeightedScore;
-        trendPercentage = Math.abs((difference / previousWeightedScore) * 100);
-
-        if (difference > 0.5) trend = "up";
-        else if (difference < -0.5) trend = "down";
-      }
-
-      return {
-        model: result._id.model,
-        stage: result._id.stage,
-        score: Math.round(result.avgOverallScore || 0),
-        weightedScore: Math.round(currentWeightedScore), // Add weighted score
-        analyses: result.totalAnalyses || 0, // Number of multi-prompt analyses
-        prompts: result.totalPrompts || 0, // Total prompts across all analyses
-        avgResponseTime: Math.round((result.avgResponseTime || 0) * 100) / 100,
-        successRate: Math.round(result.avgSuccessRate || 0),
-        trend,
-        trendPercentage: Math.round(trendPercentage),
-      };
-    });
-
-    // Calculate summary statistics using weighted scores
-    const totalAnalyses = matrixData.reduce(
-      (sum, item) => sum + item.analyses,
-      0
-    );
-    const totalPrompts = matrixData.reduce(
-      (sum, item) => sum + item.prompts,
-      0
-    );
-    const overallAvgWeightedScore =
-      totalAnalyses > 0
-        ? matrixData.reduce(
-            (sum, item) => sum + item.weightedScore * item.analyses,
-            0
-          ) / totalAnalyses
-        : 0;
-
-    // Find best and worst performing combinations from ALL data (not just paginated)
-    // Get all matrix results without pagination for best/worst calculation
-    const allMatrixResults = await MultiPromptAnalysis.aggregate(
-      matrixAggregation as any[]
-    ).exec();
-
-    // Transform all results to calculate best/worst from complete dataset
-    const allMatrixData = allMatrixResults.map((result) => {
-      const key = `${result._id.model}-${result._id.stage}`;
-      const currentWeightedScore = result.avgWeightedScore || 0;
-      const previousWeightedScore =
-        previousScoreMap.get(key) || currentWeightedScore;
-
-      let trend: "up" | "down" | "neutral" = "neutral";
-      let trendPercentage = 0;
-
-      if (previousWeightedScore > 0) {
-        const difference = currentWeightedScore - previousWeightedScore;
-        trendPercentage = Math.abs((difference / previousWeightedScore) * 100);
-
-        if (difference > 0.5) trend = "up";
-        else if (difference < -0.5) trend = "down";
-      }
 
       return {
         model: result._id.model,
@@ -364,31 +288,23 @@ export const GET = async (
         prompts: result.totalPrompts || 0,
         avgResponseTime: Math.round((result.avgResponseTime || 0) * 100) / 100,
         successRate: Math.round(result.avgSuccessRate || 0),
-        trend,
-        trendPercentage: Math.round(trendPercentage),
       };
     });
 
-    // Find best and worst performing combinations based on weighted score from ALL data
-    const sortedByWeightedScore = [...allMatrixData].sort(
-      (a, b) => b.weightedScore - a.weightedScore
-    );
-    const bestPerforming = sortedByWeightedScore[0]
+    // Find best and worst performing combinations from all data
+    const bestPerforming = allResults[0]
       ? {
-          model: sortedByWeightedScore[0].model,
-          stage: sortedByWeightedScore[0].stage,
-          score: sortedByWeightedScore[0].weightedScore,
+          model: allResults[0]._id.model,
+          stage: allResults[0]._id.stage,
+          score: Math.round(allResults[0].avgWeightedScore),
         }
       : null;
-    const worstPerforming = sortedByWeightedScore[
-      sortedByWeightedScore.length - 1
-    ]
+
+    const worstPerforming = allResults[allResults.length - 1]
       ? {
-          model: sortedByWeightedScore[sortedByWeightedScore.length - 1].model,
-          stage: sortedByWeightedScore[sortedByWeightedScore.length - 1].stage,
-          score:
-            sortedByWeightedScore[sortedByWeightedScore.length - 1]
-              .weightedScore,
+          model: allResults[allResults.length - 1]._id.model,
+          stage: allResults[allResults.length - 1]._id.stage,
+          score: Math.round(allResults[allResults.length - 1].avgWeightedScore),
         }
       : null;
 
@@ -402,6 +318,7 @@ export const GET = async (
       }),
     ]);
 
+    // Build final response with optimized data
     const response = {
       data: matrixData,
       pagination: {
@@ -411,9 +328,9 @@ export const GET = async (
         hasMore: pageNum * limitNum < totalCount,
       },
       summary: {
-        totalAnalyses,
-        totalPrompts,
-        avgWeightedScore: Math.round(overallAvgWeightedScore * 100) / 100,
+        totalAnalyses: summaryStats.totalAnalyses,
+        totalPrompts: summaryStats.totalPrompts,
+        avgWeightedScore: Math.round(summaryStats.avgWeightedScore * 100) / 100,
         bestPerforming,
         worstPerforming,
       },
