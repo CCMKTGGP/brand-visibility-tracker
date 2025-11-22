@@ -39,6 +39,19 @@ interface IMultiPromptAnalysis {
       };
     };
     status: "success" | "error" | "warning";
+    competitors_mentioned?: Array<{
+      name: string;
+      normalized_name: string;
+      confidence_score: number;
+      source_domains: string[];
+    }>;
+  }>;
+  domain_citations?: Array<{
+    domain: string;
+    authority_score: number;
+    source_type: string;
+    relevance: "high" | "medium" | "low";
+    reasoning: string;
   }>;
   metadata: {
     user_id: Types.ObjectId;
@@ -213,6 +226,57 @@ const MultiPromptAnalysisSchema = new Schema<IMultiPromptAnalysis>(
           enum: ["success", "error", "warning"],
           required: true,
         },
+        competitors_mentioned: [
+          {
+            name: {
+              type: String,
+              required: true,
+            },
+            normalized_name: {
+              type: String,
+              required: true,
+            },
+            confidence_score: {
+              type: Number,
+              required: true,
+              min: 0,
+              max: 100,
+            },
+            source_domains: [
+              {
+                type: String,
+                required: true,
+              },
+            ],
+          },
+        ],
+        domain_citations: [
+          {
+            domain: {
+              type: String,
+              required: true,
+            },
+            authority_score: {
+              type: Number,
+              required: true,
+              min: 0,
+              max: 100,
+            },
+            source_type: {
+              type: String,
+              required: true,
+            },
+            relevance: {
+              type: String,
+              enum: ["high", "medium", "low"],
+              required: true,
+            },
+            reasoning: {
+              type: String,
+              required: true,
+            },
+          },
+        ],
       },
     ],
     metadata: {

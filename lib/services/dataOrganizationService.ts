@@ -11,6 +11,7 @@ import {
   ProcessedPromptResult,
   DashboardFilters,
   DateRange,
+  CompetitorData,
 } from "@/types/services";
 
 /**
@@ -99,6 +100,7 @@ export class DataOrganizationService {
             raw_score: promptResult.score,
             position_weighted_score: promptResult.weightedScore,
             mention_position: promptResult.mentionPosition,
+            competitorData: promptResult.competitorData,
           },
           performance_level: performanceLevel,
           processing_time: promptResult.responseTime,
@@ -273,6 +275,24 @@ export class DataOrganizationService {
             distribution: distribution,
           },
           status: result.status,
+          competitors_mentioned:
+            data.stage === "TOFU"
+              ? result.scoring_result?.competitorData?.competitors?.map(
+                  (competitor: CompetitorData) => ({
+                    name: competitor.name,
+                    normalized_name: competitor.normalized_name,
+                    confidence_score: competitor.confidence_score,
+                    source_domains:
+                      competitor.source_domains?.map((source: any) =>
+                        typeof source === "string" ? source : source.domain
+                      ) || [],
+                  })
+                )
+              : undefined,
+          domain_citations:
+            data.stage === "TOFU"
+              ? result.scoring_result?.competitorData?.domains
+              : undefined,
         })),
         metadata: {
           user_id: new Types.ObjectId(data.metadata.user_id),

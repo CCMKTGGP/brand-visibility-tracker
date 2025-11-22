@@ -233,7 +233,7 @@ const FunnelHeatmap: React.FC<FunnelHeatmapProps> = ({
                             <Minus className="w-3 h-3 text-black" />
                           </div>
                           <div className="text-xs opacity-90">
-                            Raw: {cellData.score}%
+                            Score: {cellData.score}%
                           </div>
                           <div className="text-xs opacity-75 mt-1">
                             {cellData.analyses} analyses

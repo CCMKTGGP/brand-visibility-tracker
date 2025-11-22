@@ -36,6 +36,7 @@ import AnalysisStartedModal from "@/components/analysis-started-modal";
 import { AnalysisModelSelector } from "@/components/analysis-model-selector";
 import { useAnalysisStatus } from "@/hooks/use-analysis-status";
 import { isUserOwner, isUserViewer } from "@/utils/checkUserRole";
+import CompetitorTreemap from "@/components/competitor-treemap";
 
 const DashboardPage = ({
   userId,
@@ -700,6 +701,16 @@ const DashboardPage = ({
           />
         </div>
       )}
+
+      {/* Competitor Analysis Section */}
+      <div className="mb-6">
+        <CompetitorTreemap
+          brandId={brandId}
+          userId={user._id}
+          className="w-full"
+          onTriggerAnalysis={() => setShowAnalysisSelectorModal(true)}
+        />
+      </div>
 
       {/* Main Analytics Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
