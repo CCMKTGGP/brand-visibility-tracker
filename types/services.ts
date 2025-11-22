@@ -74,6 +74,10 @@ export interface AIAnalysisResult {
   mentionPosition: number | null;
   analysis: string;
   status: "success" | "error";
+  competitorData?: {
+    competitors: CompetitorData[];
+    domains: DomainCitation[];
+  };
 }
 
 /**
@@ -112,6 +116,10 @@ export interface AIAnalysisResults {
     responseTime: number;
     sentiment: SentimentAnalysis;
     status: "success" | "error";
+    competitorData?: {
+      competitors: CompetitorData[];
+      domains: DomainCitation[];
+    };
   }>;
   aggregatedSentiment: SentimentAnalysis;
   totalResponseTime: number;
@@ -231,6 +239,21 @@ export type TriggerType = "manual" | "scheduled" | "webhook";
  */
 export type AnalysisStatus = "success" | "error" | "warning";
 
+export interface CompetitorData {
+  name: string;
+  normalized_name: string;
+  confidence_score: number;
+  source_domains: string[];
+}
+
+export interface DomainCitation {
+  domain: string;
+  authority_score: number;
+  source_type: string;
+  relevance: string;
+  reasoning: string;
+}
+
 /**
  * Processed prompt result with enhanced scoring
  */
@@ -242,6 +265,10 @@ export interface ProcessedPromptResult {
     raw_score: number;
     position_weighted_score: number;
     mention_position: number | null;
+    competitorData?: {
+      competitors: CompetitorData[];
+      domains: DomainCitation[];
+    };
   };
   performance_level: PerformanceLevel;
   processing_time: number;

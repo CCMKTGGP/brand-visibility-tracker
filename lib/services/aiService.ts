@@ -6,6 +6,8 @@ import {
   ParsedAIResponse,
   StageAnalysisPrompt,
   AIAnalysisResults,
+  CompetitorData,
+  DomainCitation,
 } from "@/types/services";
 import { LLMService } from "./llmService";
 import { PromptService } from "./promptService";
@@ -133,10 +135,12 @@ export class AIService {
 
           Follow these steps:
           1. Identify if the brand "${name}" is mentioned or implied in the response.  
-          2. Extract a ranked list  of all brands or companies mentioned.  
+          2. Extract a ranked list of all brands or companies mentioned.  
           3. Determine the target brand's relative rank or visibility.  
-          4. If the brand is not mentioned, mark it as “absent.”
-          5. Add any short contextual comment about competitors or reasons for absence.
+          4. If the brand is not mentioned, mark it as "absent."
+          5. Extract all competitor companies mentioned with their context.
+          6. Identify likely source domains where this information comes from.
+          7. Add any short contextual comment about competitors or reasons for absence.
 
           Format strictly like this without the markdown formatting, Make sure all keys and strings are properly quoted and commas are placed correctly.
           Example:
@@ -144,6 +148,23 @@ export class AIService {
             "brand_mentioned": true/false,
             "rank": "first|second|third|fourth|fifth|absent",
             "comment": "short comment based on the question asked and the response to evaluate, if the brand is mentioned, provide a short comment on why it is mentioned in the given rank, if the brand is not mentioned, provide a short comment on why it is not mentioned and how it can be improved to be mentioned in the given rank",
+            "competitors_mentioned": [
+              {
+                "name": "Company Name",
+                "normalized_name": "company-name",
+                "confidence_score": 95,
+                "source_domains": ["domain1.com", "domain2.com"]
+              }
+            ],
+            "domain_citations": [
+              {
+                "domain": "example.com",
+                "authority_score": 85,
+                "source_type": "news|review|industry|academic|social|other",
+                "relevance": "high|medium|low",
+                "reasoning": "why this domain would have this info"
+              }
+            ],
             "sentiment_distribution": {
               "overall": "positive|neutral|negative",
               "confidence": number <0-100>,
@@ -300,7 +321,14 @@ export class AIService {
     brandData: IBrand,
     stage?: string,
     weights?: StageSpecificWeights
-  ): Promise<ParsedAIResponse> {
+  ): Promise<
+    ParsedAIResponse & {
+      competitorData?: {
+        competitors: CompetitorData[];
+        domains: DomainCitation[];
+      };
+    }
+  > {
     const aiResponse = await LLMService.callChatGPT(
       this.getStageSpeficAnalysisPrompt(
         prompt,
@@ -416,14 +444,51 @@ export class AIService {
       weights?.base_weight || 1
     );
 
-    return {
+    const baseResponse = {
       score: rawScore,
       position_weighted_score: weightedScore,
       mentionPosition: mentionedPosition,
       analysis: response.comment,
       sentiment: response.sentiment_distribution,
-      status: "success",
+      status: "success" as const,
     };
+
+    // Extract competitor data for TOFU stage only
+    if (
+      stage === "TOFU" &&
+      response.competitors_mentioned &&
+      response.domain_citations
+    ) {
+      const competitorData: {
+        competitors: CompetitorData[];
+        domains: DomainCitation[];
+      } = {
+        competitors: response.competitors_mentioned.map((comp: any) => ({
+          name: comp.name,
+          normalized_name: comp.normalized_name,
+          confidence_score: comp.confidence_score,
+          industry_category: brandData.category || "business",
+          source_domains: comp.source_domains.map((domain: string) => ({
+            domain,
+          })),
+        })),
+        domains: response.domain_citations.map((domain: any) => ({
+          domain: domain.domain,
+          authority_score: domain.authority_score,
+          source_type: domain.source_type,
+          relevance: domain.relevance,
+          reasoning: domain.reasoning,
+          confidence: 90,
+        })),
+      };
+
+      return {
+        ...baseResponse,
+        competitorData,
+      };
+    }
+
+    return baseResponse;
   }
 
   /**
@@ -501,6 +566,7 @@ export class AIService {
         mentionPosition: parsedData.mentionPosition,
         analysis: parsedData.analysis,
         status: "success",
+        competitorData: parsedData.competitorData,
       };
     } catch (error) {
       console.error(`AI Analysis Error for ${model}:`, error);
@@ -603,6 +669,7 @@ export class AIService {
             responseTime: analysisResult.responseTime,
             sentiment: analysisResult.sentiment,
             status: analysisResult.status,
+            competitorData: analysisResult.competitorData,
           });
 
           // Aggregate successful analysis results
