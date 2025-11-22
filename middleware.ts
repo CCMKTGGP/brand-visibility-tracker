@@ -15,7 +15,6 @@ export const config = {
     "/api/brand/:brandId/transactions/:path*",
     "/api/brand/:brandId/matrix/:path*",
     "/api/brand/matrix-summary/:path*",
-    "/api/run-analysis/:path*",
     "/api/users/:path*",
     "/:userId/brands/:path*",
   ],
