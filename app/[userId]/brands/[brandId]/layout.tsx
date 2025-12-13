@@ -40,6 +40,7 @@ import { toast } from "sonner";
 import { CreditBalance } from "@/components/credit-balance";
 import { CreditStats } from "@/types";
 import { isUserOwner } from "@/utils/checkUserRole";
+import Image from "next/image";
 
 interface BrandLayoutProps {
   children: React.ReactNode;
@@ -178,14 +179,18 @@ const BrandLayout: React.FC<BrandLayoutProps> = ({ children }) => {
         <SidebarHeader>
           <SidebarMenu>
             <SidebarMenuItem>
-              <SidebarMenuButton size="lg" asChild>
+              <SidebarMenuButton
+                size="lg"
+                asChild
+                className="cursor-pointer hover:bg-transparent"
+              >
                 <Link href={`/${userId}/brands`}>
-                  <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
-                    <Building2 className="size-4" />
-                  </div>
-                  <div className="grid flex-1 text-left text-sm leading-tight">
-                    <span className="truncate font-semibold">Brand Viz</span>
-                  </div>
+                  <Image
+                    src="/logo.svg"
+                    alt="GEO Status"
+                    width={140}
+                    height={140}
+                  />
                 </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
