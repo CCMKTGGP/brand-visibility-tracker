@@ -5,9 +5,12 @@ import Link from "next/link";
 
 // Local imports
 import { LoginForm } from "@/components/forms/login-form";
+import { useRef } from "react";
 import Logo from "@/components/logo";
 import { Button } from "@/components/ui/button";
 import { ModeToggle } from "@/components/mode-toggle";
+import { signIn } from "next-auth/react";
+import { fetchData } from "@/utils/fetch";
 
 /**
  * Login Page Component
@@ -18,6 +21,17 @@ import { ModeToggle } from "@/components/mode-toggle";
  * @returns JSX.Element - The login page interface
  */
 const LoginPage: React.FC = () => {
+  const linkRef = useRef<any>({});
+  async function handleMicrosoftLogin() {
+    try {
+      const response = await fetchData("/api/login-with-microsoft");
+      const { data } = response;
+      linkRef.current.href = data;
+      linkRef.current.click();
+    } catch (err) {
+      console.error(err);
+    }
+  }
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 py-12 px-4 sm:px-6 lg:px-8 relative">
       <div className="absolute top-10 right-10">
@@ -52,7 +66,17 @@ const LoginPage: React.FC = () => {
           </div>
 
           <div className="mt-6 grid grid-cols-2 gap-3">
-            <Button type="button" variant="outline" className="w-full">
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full"
+              onClick={() =>
+                signIn("google", {
+                  redirect: true,
+                  callbackUrl: `/auth/redirect`,
+                })
+              }
+            >
               <svg className="h-5 w-5" viewBox="0 0 24 24">
                 <path
                   fill="currentColor"
@@ -74,7 +98,12 @@ const LoginPage: React.FC = () => {
               <span className="ml-2">Google</span>
             </Button>
 
-            <Button type="button" variant="outline" className="w-full">
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full"
+              onClick={handleMicrosoftLogin}
+            >
               <svg className="h-5 w-5" viewBox="0 0 23 23">
                 <path fill="#f35325" d="M1 1h10v10H1z" />
                 <path fill="#81bc06" d="M12 1h10v10H12z" />
@@ -83,6 +112,7 @@ const LoginPage: React.FC = () => {
               </svg>
               <span className="ml-2">Microsoft</span>
             </Button>
+            <a ref={linkRef} className="hidden"></a>
           </div>
         </div>
 

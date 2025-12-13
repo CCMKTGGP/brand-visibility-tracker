@@ -9,6 +9,7 @@ import "./globals.css";
 import { ThemeProvider } from "@/context/theme-provider";
 import { UserContext } from "@/context/userContext";
 import { Toaster } from "@/components/ui/sonner";
+import CustomSessionProvider from "@/components/session-provider";
 
 // Font configurations
 const geistSans = Geist({
@@ -22,7 +23,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Brand Visibility Tracker",
+  title: "GEO Status",
   description: "Track your brand's visibility across various AI platforms",
 };
 
@@ -46,14 +47,16 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <Toaster position="top-right" expand={false} />
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="system"
-          enableSystem
-          disableTransitionOnChange
-        >
-          <UserContext>{children}</UserContext>
-        </ThemeProvider>
+        <CustomSessionProvider>
+          <ThemeProvider
+            attribute="class"
+            defaultTheme="system"
+            enableSystem
+            disableTransitionOnChange
+          >
+            <UserContext>{children}</UserContext>
+          </ThemeProvider>
+        </CustomSessionProvider>
       </body>
     </html>
   );

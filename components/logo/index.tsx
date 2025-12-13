@@ -3,9 +3,7 @@ import React from "react";
 
 // Next.js imports
 import Link from "next/link";
-
-// Third-party imports
-import { Building2 } from "lucide-react";
+import Image from "next/image";
 
 /**
  * Logo Component
@@ -18,10 +16,7 @@ import { Building2 } from "lucide-react";
 export default function Logo() {
   return (
     <Link href="/" className="flex items-center cursor-pointer">
-      <Building2 className="h-8 w-8 text-accent" />
-      <span className="ml-2 text-2xl font-bold text-gray-900 dark:text-white">
-        BrandViz
-      </span>
+      <Image src="/logo.svg" alt="GEO Status" width={140} height={140} />
     </Link>
   );
 }
