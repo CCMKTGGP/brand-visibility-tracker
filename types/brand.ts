@@ -149,6 +149,10 @@ export interface DashboardResponse {
     name: string;
     category?: string;
     region?: string;
+    target_audience?: string[];
+    competitors?: string[];
+    use_case?: string;
+    feature_list?: string[];
   };
   currentPeriodMetrics: {
     totalAnalyses: number;

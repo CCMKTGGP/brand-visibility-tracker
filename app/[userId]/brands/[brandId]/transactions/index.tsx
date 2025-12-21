@@ -20,6 +20,7 @@ import {
   Search,
   CalendarIcon,
   Filter,
+  ArrowLeft,
 } from "lucide-react";
 import { fetchData } from "@/utils/fetch";
 import { useUserContext } from "@/context/userContext";
@@ -43,6 +44,7 @@ import {
 import { Calendar } from "@/components/ui/calendar";
 import { Input } from "@/components/ui/input";
 import formatCredits from "@/utils/formatCredits";
+import { useRouter } from "next/navigation";
 
 interface TransactionHistoryResponse {
   message: string;
@@ -88,7 +90,7 @@ export default function TransactionHistoryPage({
   brandId,
 }: {
   userId: string;
-  brandId: string;
+  brandId?: string;
 }) {
   const { user } = useUserContext();
 
@@ -111,6 +113,7 @@ export default function TransactionHistoryPage({
       totalPages: 1,
     },
   });
+  const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
@@ -313,7 +316,14 @@ export default function TransactionHistoryPage({
   }
 
   return (
-    <div className="space-y-6">
+    <div className={`space-y-6 ${brandId ? "" : "p-12"}`}>
+      {/* BACK BUTTON */}
+      {!brandId && (
+        <Button variant="outline" size="sm" onClick={() => router.back()}>
+          <ArrowLeft className="h-4 w-4 mr-2" />
+          Back to Brands
+        </Button>
+      )}
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -566,7 +576,13 @@ export default function TransactionHistoryPage({
                   </Button>
                 ) : (
                   <Button asChild>
-                    <a href={`/${userId}/brands/${brandId}/credits/purchase`}>
+                    <a
+                      href={
+                        brandId
+                          ? `/${userId}/brands/${brandId}/credits/purchase`
+                          : `/${userId}/credits/purchase`
+                      }
+                    >
                       Purchase Credits
                     </a>
                   </Button>

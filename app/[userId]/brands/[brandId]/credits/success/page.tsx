@@ -35,7 +35,11 @@ export default function CreditPurchaseSuccessPage() {
   // Separate effect to handle navigation when countdown reaches 0
   useEffect(() => {
     if (countdown === 0) {
-      router.push(`/${userId}/brands/${brandId}/dashboard`);
+      if (brandId) {
+        router.push(`/${userId}/brands/${brandId}/dashboard`);
+      } else {
+        router.push(`/${userId}/brands`);
+      }
     }
   }, [countdown, router, userId, brandId]);
 
@@ -69,18 +73,24 @@ export default function CreditPurchaseSuccessPage() {
           <div className="space-y-3">
             <Button
               onClick={() =>
-                router.push(`/${userId}/brands/${brandId}/dashboard`)
+                brandId
+                  ? router.push(`/${userId}/brands/${brandId}/dashboard`)
+                  : router.push(`/${userId}/brands`)
               }
               className="w-full"
               size="lg"
             >
               <ArrowRight className="h-4 w-4 mr-2" />
-              Go to Dashboard
+              {brandId ? "Go to Dashboard" : "Go to Brands"}
             </Button>
 
             <Button
               onClick={() =>
-                router.push(`/${userId}/brands/${brandId}/credits/purchase`)
+                router.push(
+                  brandId
+                    ? `/${userId}/brands/${brandId}/credits/purchase`
+                    : `/${userId}/credits/purchase`
+                )
               }
               variant="outline"
               className="w-full"
@@ -88,15 +98,17 @@ export default function CreditPurchaseSuccessPage() {
               Purchase More Credits
             </Button>
 
-            <Button
-              onClick={() =>
-                router.push(`/${userId}/brands/${brandId}/credits`)
-              }
-              variant="ghost"
-              className="w-full"
-            >
-              View Credit Balance
-            </Button>
+            {brandId && (
+              <Button
+                onClick={() =>
+                  router.push(`/${userId}/brands/${brandId}/credits`)
+                }
+                variant="ghost"
+                className="w-full"
+              >
+                View Credit Balance
+              </Button>
+            )}
           </div>
 
           <div className="text-center text-sm text-gray-500">

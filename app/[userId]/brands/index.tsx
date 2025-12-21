@@ -1,6 +1,13 @@
 "use client";
 import React, { useEffect, useState } from "react";
-import { Plus, Search, MoreHorizontal, Building2 } from "lucide-react";
+import {
+  Plus,
+  Search,
+  MoreHorizontal,
+  Building2,
+  CreditCard,
+  History,
+} from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -42,9 +49,19 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { useUserContext } from "@/context/userContext";
+import formatCredits from "@/utils/formatCredits";
 
 const BrandListContent = ({ userId }: { userId: string }) => {
   const router = useRouter();
+  const { user } = useUserContext();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
@@ -102,10 +119,10 @@ const BrandListContent = ({ userId }: { userId: string }) => {
       setBrands((prevBrands) =>
         prevBrands.filter((brand) => brand._id !== brandToDelete._id)
       );
-      // Refresh matrix data to remove deleted brand
-      await refreshMatrixData();
       setDeleteDialogOpen(false);
       setBrandToDelete(null);
+      // Refresh matrix data to remove deleted brand
+      await refreshMatrixData();
     } catch (error) {
       toast.error(
         `Error deleting brand - ${
@@ -180,6 +197,15 @@ const BrandListContent = ({ userId }: { userId: string }) => {
               View Metrics
             </DropdownMenuItem>
             <DropdownMenuItem
+              onClick={() =>
+                router.push(
+                  `/${userId}/onboarding/clone-brand?brandId=${brand._id}`
+                )
+              }
+            >
+              Clone Brand
+            </DropdownMenuItem>
+            <DropdownMenuItem
               className="text-destructive hover:text-white"
               onClick={() => openDeleteDialog(brand)}
             >
@@ -210,18 +236,102 @@ const BrandListContent = ({ userId }: { userId: string }) => {
                 {brand.name}
               </Link>
               <div className="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-400">
-                <span>{brand.category}</span>
+                <span>{brand.category || "Uncategorized"}</span>
                 <span>•</span>
-                <span>{brand.region}</span>
+                <span>{brand.region || "Global"}</span>
               </div>
             </div>
           </div>
           <div className="flex items-center space-x-2">
-            {/* <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(brand.status)}`}>
-            {brand.status}
-          </span> */}
             <ActionMenu brand={brand} />
           </div>
+        </div>
+
+        {/* Brand Details Section */}
+        <div className="mb-4 space-y-3">
+          {/* Use Case */}
+          {brand.use_case && (
+            <div>
+              <h4 className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">
+                Use Case
+              </h4>
+              <p className="text-sm text-gray-700 dark:text-gray-300 line-clamp-2">
+                {brand.use_case}
+              </p>
+            </div>
+          )}
+
+          {/* Target Audience */}
+          {brand.target_audience && brand.target_audience.length > 0 && (
+            <div>
+              <h4 className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">
+                Audience
+              </h4>
+              <div className="flex flex-wrap gap-1">
+                {brand.target_audience.slice(0, 3).map((audience, index) => (
+                  <span
+                    key={index}
+                    className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200"
+                  >
+                    {audience}
+                  </span>
+                ))}
+                {brand.target_audience.length > 3 && (
+                  <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400">
+                    +{brand.target_audience.length - 3} more
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Competitors */}
+          {brand.competitors && brand.competitors.length > 0 && (
+            <div>
+              <h4 className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">
+                Competitors
+              </h4>
+              <div className="flex flex-wrap gap-1">
+                {brand.competitors.slice(0, 3).map((competitor, index) => (
+                  <span
+                    key={index}
+                    className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200"
+                  >
+                    {competitor}
+                  </span>
+                ))}
+                {brand.competitors.length > 3 && (
+                  <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400">
+                    +{brand.competitors.length - 3} more
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Key Features */}
+          {brand.feature_list && brand.feature_list.length > 0 && (
+            <div>
+              <h4 className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">
+                Key Features
+              </h4>
+              <div className="flex flex-wrap gap-1">
+                {brand.feature_list.slice(0, 2).map((feature, index) => (
+                  <span
+                    key={index}
+                    className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
+                  >
+                    {feature}
+                  </span>
+                ))}
+                {brand.feature_list.length > 2 && (
+                  <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400">
+                    +{brand.feature_list.length - 2} more
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Matrix Data Section */}
@@ -412,6 +522,81 @@ const BrandListContent = ({ userId }: { userId: string }) => {
             Add Brand
           </Link>
         </div>
+
+        {/* Credit Management Cards */}
+        {user && user._id && (
+          <div className="flex items-center gap-4">
+            <Card className="hover:shadow-md transition-shadow cursor-pointer w-96">
+              <Link href={`/${userId}/credits/purchase`}>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-primary/10 rounded-lg">
+                        <CreditCard className="h-5 w-5 text-primary" />
+                      </div>
+                      <div>
+                        <CardTitle className="text-lg">
+                          Purchase Credits
+                        </CardTitle>
+                        <CardDescription>
+                          Buy credits to analyze your brands
+                        </CardDescription>
+                      </div>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="py-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                        {formatCredits(user.credits_balance ?? 0)}
+                      </p>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">
+                        Current Balance
+                      </p>
+                    </div>
+                    <CreditCard className="h-8 w-8 text-gray-400" />
+                  </div>
+                </CardContent>
+              </Link>
+            </Card>
+
+            <Card className="hover:shadow-md transition-shadow cursor-pointer w-96">
+              <Link href={`/${userId}/transactions`}>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-primary/10 rounded-lg">
+                        <History className="h-5 w-5 text-primary" />
+                      </div>
+                      <div>
+                        <CardTitle className="text-lg">
+                          Transaction History
+                        </CardTitle>
+                        <CardDescription>
+                          View all your credit transactions
+                        </CardDescription>
+                      </div>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="py-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                        {formatCredits(user.total_credits_purchased ?? 0)}
+                      </p>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">
+                        Total Purchased
+                      </p>
+                    </div>
+                    <History className="h-8 w-8 text-gray-400" />
+                  </div>
+                </CardContent>
+              </Link>
+            </Card>
+          </div>
+        )}
 
         {/* Filters and Search */}
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">

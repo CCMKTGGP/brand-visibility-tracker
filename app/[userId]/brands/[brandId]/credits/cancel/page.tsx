@@ -14,7 +14,7 @@ import { XCircle, ArrowLeft, CreditCard } from "lucide-react";
 export default function CreditPurchaseCancelPage() {
   const router = useRouter();
   const params = useParams();
-  const { userId, brandId } = params;
+  const { userId, brandId } = params as { userId: string; brandId?: string };
 
   return (
     <div className="min-h-[60vh] flex items-center justify-center px-4">
@@ -42,7 +42,11 @@ export default function CreditPurchaseCancelPage() {
           <div className="space-y-3">
             <Button
               onClick={() =>
-                router.push(`/${userId}/brands/${brandId}/credits/purchase`)
+                router.push(
+                  brandId
+                    ? `/${userId}/brands/${brandId}/credits/purchase`
+                    : `/${userId}/credits/purchase`
+                )
               }
               className="w-full"
               size="lg"
@@ -53,13 +57,15 @@ export default function CreditPurchaseCancelPage() {
 
             <Button
               onClick={() =>
-                router.push(`/${userId}/brands/${brandId}/dashboard`)
+                brandId
+                  ? router.push(`/${userId}/brands/${brandId}/dashboard`)
+                  : router.push(`/${userId}/brands`)
               }
               variant="outline"
               className="w-full"
             >
               <ArrowLeft className="h-4 w-4 mr-2" />
-              Back to Dashboard
+              {brandId ? "Back to Dashboard" : "Back to Brands"}
             </Button>
           </div>
         </CardContent>
