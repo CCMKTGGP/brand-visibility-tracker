@@ -1,14 +1,17 @@
 "use client";
 
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { CreditPurchase } from "@/components/credit-purchase";
 import { CreditBalance } from "@/components/credit-balance";
 import { useUserContext } from "@/context/userContext";
 import Loading from "@/components/loading";
 import { CreditStats } from "@/types";
+import { Button } from "@/components/ui/button";
+import { ArrowLeft } from "lucide-react";
 
 export default function CreditPurchasePage() {
   const params = useParams();
+  const router = useRouter();
   const { userId, brandId } = params;
   const { user } = useUserContext();
 
@@ -20,16 +23,23 @@ export default function CreditPurchasePage() {
     );
   }
 
+  // Determine success/cancel URLs - use brand-specific if brandId exists, otherwise user-level
+  const successUrl = brandId
+    ? `${window.location.origin}/${userId}/brands/${brandId}/credits/success`
+    : `${window.location.origin}/${userId}/credits/success`;
+  const cancelUrl = brandId
+    ? `${window.location.origin}/${userId}/brands/${brandId}/credits/cancel`
+    : `${window.location.origin}/${userId}/credits/cancel`;
+
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-            Current Credits
-          </h1>
-        </div>
-      </div>
+    <div className={`space-y-6 ${brandId ? "" : "p-12"}`}>
+      {/* BACK BUTTON */}
+      {!brandId && (
+        <Button variant="outline" size="sm" onClick={() => router.back()}>
+          <ArrowLeft className="h-4 w-4 mr-2" />
+          Back to Brands
+        </Button>
+      )}
 
       {/* Current Balance */}
       <div className="max-w-md">
@@ -49,8 +59,8 @@ export default function CreditPurchasePage() {
       {/* Purchase Component */}
       <CreditPurchase
         userId={user._id}
-        successUrl={`${window.location.origin}/${userId}/brands/${brandId}/credits/success`}
-        cancelUrl={`${window.location.origin}/${userId}/brands/${brandId}/credits/cancel`}
+        successUrl={successUrl}
+        cancelUrl={cancelUrl}
         onPurchaseStart={() => {
           console.log("Purchase started");
         }}

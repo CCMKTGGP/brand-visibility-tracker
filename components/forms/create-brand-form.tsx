@@ -32,20 +32,36 @@ const formSchema = z.object({
   features: z.array(z.string()).optional(),
 });
 
-export function CreateBrandForm({ userId }: { userId: string }) {
+export function CreateBrandForm({
+  userId,
+  initialValues,
+  isClone = false,
+}: {
+  userId: string;
+  initialValues?: {
+    name?: string;
+    category?: string;
+    region?: string;
+    targetAudience?: string[];
+    competitors?: string[];
+    useCase?: string;
+    features?: string[];
+  };
+  isClone?: boolean;
+}) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      name: "",
-      category: "",
-      region: "",
-      targetAudience: [],
-      competitors: [],
-      useCase: "",
-      features: [],
+      name: initialValues?.name || "",
+      category: initialValues?.category || "",
+      region: initialValues?.region || "",
+      targetAudience: initialValues?.targetAudience || [],
+      competitors: initialValues?.competitors || [],
+      useCase: initialValues?.useCase || "",
+      features: initialValues?.features || [],
     },
   });
 
@@ -222,7 +238,11 @@ export function CreateBrandForm({ userId }: { userId: string }) {
               }
             >
               {loading ? (
-                <Loading message="Creating brand..." />
+                <Loading
+                  message={isClone ? "Cloning brand..." : "Creating brand..."}
+                />
+              ) : isClone ? (
+                "Clone Brand"
               ) : (
                 "Create Brand"
               )}

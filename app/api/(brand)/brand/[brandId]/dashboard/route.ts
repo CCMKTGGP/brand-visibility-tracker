@@ -454,6 +454,10 @@ export const GET = async (
         name: brand.name,
         category: brand.category,
         region: brand.region,
+        target_audience: brand.target_audience,
+        competitors: brand.competitors,
+        use_case: brand.use_case,
+        feature_list: brand.feature_list,
       },
       currentPeriodMetrics: {
         totalAnalyses: currentMetrics.totalAnalyses,

@@ -492,19 +492,60 @@ export class AIService {
   }
 
   /**
-   * System message template for AI models
+   * Gets stage-specific system message for AI models
    *
-   * This message provides consistent instructions across all AI models,
-   * ensuring they understand the context and respond appropriately for
-   * different marketing funnel stages.
+   * Each marketing funnel stage requires different response formats:
+   * - TOFU: Ranked list format (discovery questions)
+   * - MOFU: Comparison/sentiment analysis format (evaluation questions)
+   * - BOFU: Direct recommendation format (purchase intent questions)
+   * - EVFU: Sentiment/reputation analysis format (post-purchase questions)
+   *
+   * @param stage - Marketing funnel stage to get system message for
+   * @returns Stage-specific system message with appropriate instructions
    */
-  private static readonly systemMessage = `You are a helpful assistant tasked with answering business discovery questions using general market knowledge and inference.
-  When possible, respond in the form of a ranked list of exactly 5 options.
-  Rank them in order of relevance, prominence, or likelihood.
-  If you are unfamiliar with any specific brands, provide comparable examples or general best practices.
-  Avoid discussing your training data or knowledge cutoff unless specifically asked.
-  Do not explain the ranking unless explicitly instructed.
-  Avoid using hedge words like 'likely', 'probably', 'seems', 'appears' - be direct and confident in your assessments.`;
+  private static getStageSpecificSystemMessage(stage?: string): string {
+    const baseInstructions = `You are a helpful assistant tasked with answering business discovery questions using general market knowledge and inference.
+If you are unfamiliar with any specific brands, provide comparable examples or general best practices.
+Avoid discussing your training data or knowledge cutoff unless specifically asked.
+Avoid using hedge words like 'likely', 'probably', 'seems', 'appears' - be direct and confident in your assessments.`;
+
+    switch (stage) {
+      case "TOFU":
+        return `${baseInstructions}
+When answering, respond in the form of a ranked list of exactly 5 options.
+Rank them in order of relevance, prominence, or likelihood.
+Do not explain the ranking unless explicitly instructed.
+Focus on identifying companies, brands, or providers that match the question criteria.`;
+
+      case "MOFU":
+        return `${baseInstructions}
+When answering comparison or perception questions, provide a detailed analysis of how brands are positioned, compared, or perceived.
+Focus on sentiment, tone, strengths, weaknesses, and competitive positioning.
+Do not format your response as a ranked list unless the question specifically asks for one.
+Instead, provide a narrative analysis that evaluates the brand's positioning and sentiment.`;
+
+      case "BOFU":
+        return `${baseInstructions}
+When answering recommendation or purchase intent questions, provide a direct, clear answer about whether you would recommend the brand or if it's a good choice.
+Focus on purchase readiness, trustworthiness, and conversion potential.
+Do not format your response as a ranked list unless the question specifically asks for one.
+Instead, provide a clear recommendation with supporting reasoning.`;
+
+      case "EVFU":
+        return `${baseInstructions}
+When answering reputation or post-purchase questions, provide a detailed sentiment analysis of customer experiences, satisfaction, and advocacy.
+Focus on trustworthiness, customer satisfaction, loyalty, and recommendation signals.
+Do not format your response as a ranked list unless the question specifically asks for one.
+Instead, provide a narrative analysis of the brand's reputation and customer sentiment.`;
+
+      default:
+        // Default to TOFU format for backward compatibility
+        return `${baseInstructions}
+When possible, respond in the form of a ranked list of exactly 5 options.
+Rank them in order of relevance, prominence, or likelihood.
+Do not explain the ranking unless explicitly instructed.`;
+    }
+  }
 
   /**
    * Analyzes a brand using a single AI model and prompt
@@ -533,16 +574,19 @@ export class AIService {
     try {
       let aiResponse: { response: string; responseTime: number };
 
+      // Get stage-specific system message for appropriate response format
+      const systemMessage = this.getStageSpecificSystemMessage(stage);
+
       // Route to the appropriate AI model based on the model parameter
       switch (model) {
         case "ChatGPT":
-          aiResponse = await LLMService.callChatGPT(prompt, this.systemMessage);
+          aiResponse = await LLMService.callChatGPT(prompt, systemMessage);
           break;
         case "Claude":
-          aiResponse = await LLMService.callClaude(prompt, this.systemMessage);
+          aiResponse = await LLMService.callClaude(prompt, systemMessage);
           break;
         case "Gemini":
-          aiResponse = await LLMService.callGemini(prompt, this.systemMessage);
+          aiResponse = await LLMService.callGemini(prompt, systemMessage);
           break;
         default:
           throw new Error(`Unsupported AI model: ${model}`);

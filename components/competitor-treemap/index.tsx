@@ -61,6 +61,7 @@ interface CompetitorTreemapProps {
   userId: string;
   className?: string;
   onTriggerAnalysis?: () => void;
+  isAnalysisRunning?: boolean | null;
 }
 
 // Color scheme constants
@@ -109,6 +110,7 @@ const CompetitorTreemap: React.FC<CompetitorTreemapProps> = ({
   userId,
   className = "",
   onTriggerAnalysis,
+  isAnalysisRunning,
 }) => {
   const [data, setData] = useState<TreemapData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -573,7 +575,7 @@ const CompetitorTreemap: React.FC<CompetitorTreemapProps> = ({
 
             {/* Action Buttons */}
             <div className="flex flex-col sm:flex-row gap-3">
-              {onTriggerAnalysis && (
+              {onTriggerAnalysis && !isAnalysisRunning && (
                 <Button
                   onClick={onTriggerAnalysis}
                   className="flex items-center gap-2"
@@ -581,6 +583,11 @@ const CompetitorTreemap: React.FC<CompetitorTreemapProps> = ({
                 >
                   <Play className="w-4 h-4" />
                   Start Analysis
+                </Button>
+              )}
+              {isAnalysisRunning && (
+                <Button variant="outline" size="lg" disabled>
+                  <Loading message="Analysis Running..." />
                 </Button>
               )}
               <Button

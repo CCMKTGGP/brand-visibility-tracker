@@ -199,10 +199,10 @@ const DashboardPage = ({
   }) => {
     const stages = ["TOFU", "MOFU", "BOFU", "EVFU"] as const;
     const stageLabels = {
-      TOFU: "Top of Funnel",
-      MOFU: "Middle of Funnel",
-      BOFU: "Bottom of Funnel",
-      EVFU: "Extended Value Funnel",
+      TOFU: "Awareness",
+      MOFU: "Consideration",
+      BOFU: "Decision",
+      EVFU: "Recommendation",
     };
 
     return (
@@ -698,6 +698,15 @@ const DashboardPage = ({
             data={dashboardData.heatmapData}
             title="Stage vs Model Performance Matrix"
             showSummary={true}
+            brandDetails={{
+              name: selectedBrand.name,
+              category: selectedBrand.category,
+              region: selectedBrand.region,
+              target_audience: (dashboardData.brand as any).target_audience,
+              competitors: (dashboardData.brand as any).competitors,
+              use_case: (dashboardData.brand as any).use_case,
+              feature_list: (dashboardData.brand as any).feature_list,
+            }}
           />
         </div>
       )}
@@ -709,6 +718,7 @@ const DashboardPage = ({
           userId={user._id}
           className="w-full"
           onTriggerAnalysis={() => setShowAnalysisSelectorModal(true)}
+          isAnalysisRunning={isRunning}
         />
       </div>
 

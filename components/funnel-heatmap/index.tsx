@@ -1,13 +1,23 @@
 "use client";
 
-import React, { useState } from "react";
-import { Info, Target, Activity, BarChart3, Minus } from "lucide-react";
+import * as htmlToImage from "html-to-image";
+import React, { useState, useRef } from "react";
+import {
+  Info,
+  Target,
+  Activity,
+  BarChart3,
+  Minus,
+  Download,
+} from "lucide-react";
+import { generateExportFilename } from "@/utils/exportUtils";
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { Button } from "@/components/ui/button";
 
 interface HeatmapData {
   stages: string[];
@@ -29,21 +39,58 @@ interface HeatmapData {
   };
 }
 
+interface BrandDetails {
+  name: string;
+  category?: string;
+  region?: string;
+  target_audience?: string[];
+  competitors?: string[];
+  use_case?: string;
+  feature_list?: string[];
+}
+
 interface FunnelHeatmapProps {
   data: HeatmapData;
   title?: string;
   showSummary?: boolean;
+  brandDetails?: BrandDetails;
 }
 
 const FunnelHeatmap: React.FC<FunnelHeatmapProps> = ({
   data,
   title = "Stage vs Model Performance Matrix",
   showSummary = true,
+  brandDetails,
 }) => {
   const [selectedCell, setSelectedCell] = useState<{
     stage: string;
     model: string;
   } | null>(null);
+  const [isExporting, setIsExporting] = useState(false);
+  const heatmapRef = useRef<HTMLDivElement>(null);
+  const anchorRef = useRef<HTMLAnchorElement>(null);
+
+  // Export function using robust utility
+  const exportAsImage = async () => {
+    if (!heatmapRef.current) return;
+    setIsExporting(true);
+    htmlToImage
+      .toPng(heatmapRef.current)
+      .then((dataUrl) => {
+        anchorRef.current!.href = dataUrl;
+        anchorRef.current!.download = generateExportFilename(
+          "heatmap",
+          brandDetails?.name
+        );
+        anchorRef.current!.click();
+      })
+      .catch((err) => {
+        console.error("oops, something went wrong!", err);
+      })
+      .finally(() => {
+        setIsExporting(false);
+      });
+  };
 
   // Helper functions
   const getScoreColor = (score: number) => {
@@ -84,10 +131,10 @@ const FunnelHeatmap: React.FC<FunnelHeatmapProps> = ({
 
   const getStageLabel = (stage: string) => {
     const labels = {
-      TOFU: "Top of Funnel",
-      MOFU: "Middle of Funnel",
-      BOFU: "Bottom of Funnel",
-      EVFU: "Extended Value Funnel",
+      TOFU: "Awareness",
+      MOFU: "Consideration",
+      BOFU: "Decision",
+      EVFU: "Recommendation",
     };
     return labels[stage as keyof typeof labels] || stage;
   };
@@ -117,7 +164,10 @@ const FunnelHeatmap: React.FC<FunnelHeatmapProps> = ({
   };
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+    <div
+      ref={heatmapRef}
+      className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6"
+    >
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
@@ -129,6 +179,35 @@ const FunnelHeatmap: React.FC<FunnelHeatmapProps> = ({
           </p>
         </div>
         <div className="flex items-center space-x-2">
+          <a
+            ref={anchorRef}
+            href="#"
+            download={generateExportFilename("heatmap", brandDetails?.name)}
+            className="hidden"
+          />
+          <TooltipProvider>
+            <Tooltip>
+              {!isExporting && (
+                <TooltipTrigger asChild>
+                  <Button
+                    onClick={exportAsImage}
+                    disabled={isExporting}
+                    variant="default"
+                    size="sm"
+                    className="flex items-center gap-2"
+                    data-export-button
+                  >
+                    <Download className="w-3 h-3" />
+                    {isExporting ? "Exporting..." : "Export PNG"}
+                  </Button>
+                </TooltipTrigger>
+              )}
+              <TooltipContent>
+                <p className="text-xs">Export heatmap as PNG image</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger>
@@ -145,6 +224,143 @@ const FunnelHeatmap: React.FC<FunnelHeatmapProps> = ({
           </TooltipProvider>
         </div>
       </div>
+
+      {/* Brand Details Section */}
+      {brandDetails && (
+        <div className="mb-6 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600">
+          <div className="flex items-center mb-3">
+            <Target className="w-4 h-4 text-primary mr-2" />
+            <h4 className="text-sm font-medium text-gray-900 dark:text-white">
+              Brand Overview
+            </h4>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {/* Basic Info */}
+            <div className="space-y-2">
+              <div>
+                <span className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">
+                  Brand Name
+                </span>
+                <p className="text-sm text-gray-700 dark:text-gray-300 font-bold">
+                  {brandDetails.name || "Untitled Brand"}
+                </p>
+              </div>
+              <div>
+                <span className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">
+                  Category
+                </span>
+                <p className="text-sm text-gray-700 dark:text-gray-300 font-bold">
+                  {brandDetails.category || "Uncategorized"}
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <div>
+                <span className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">
+                  Region
+                </span>
+                <p className="text-sm text-gray-700 dark:text-gray-300 font-bold">
+                  {brandDetails.region || "Global"}
+                </p>
+              </div>
+              {/* Use Case */}
+              {brandDetails.use_case && (
+                <div>
+                  <span className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">
+                    Use Case
+                  </span>
+                  <p className="text-sm text-gray-700 dark:text-gray-300 line-clamp-2 font-bold">
+                    {brandDetails.use_case}
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Target Audience */}
+            {brandDetails.target_audience &&
+              brandDetails.target_audience.length > 0 && (
+                <div>
+                  <span className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide block mb-1">
+                    Target Audience
+                  </span>
+                  <div className="flex flex-wrap gap-1">
+                    {brandDetails.target_audience
+                      .slice(0, 2)
+                      .map((audience, index) => (
+                        <span
+                          key={index}
+                          className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200"
+                        >
+                          {audience}
+                        </span>
+                      ))}
+                    {brandDetails.target_audience.length > 2 && (
+                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400">
+                        +{brandDetails.target_audience.length - 2}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
+
+            {/* Competitors */}
+            {brandDetails.competitors &&
+              brandDetails.competitors.length > 0 && (
+                <div>
+                  <span className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide block mb-1">
+                    Competitors
+                  </span>
+                  <div className="flex flex-wrap gap-1">
+                    {brandDetails.competitors
+                      .slice(0, 2)
+                      .map((competitor, index) => (
+                        <span
+                          key={index}
+                          className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200"
+                        >
+                          {competitor}
+                        </span>
+                      ))}
+                    {brandDetails.competitors.length > 2 && (
+                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400">
+                        +{brandDetails.competitors.length - 2}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
+
+            {/* Key Features */}
+            {brandDetails.feature_list &&
+              brandDetails.feature_list.length > 0 && (
+                <div>
+                  <span className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide block mb-1">
+                    Key Features
+                  </span>
+                  <div className="flex flex-wrap gap-1">
+                    {brandDetails.feature_list
+                      .slice(0, 2)
+                      .map((feature, index) => (
+                        <span
+                          key={index}
+                          className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
+                        >
+                          {feature}
+                        </span>
+                      ))}
+                    {brandDetails.feature_list.length > 2 && (
+                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400">
+                        +{brandDetails.feature_list.length - 2}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
+          </div>
+        </div>
+      )}
 
       {/* Heatmap Grid */}
       <div className="overflow-x-auto">
