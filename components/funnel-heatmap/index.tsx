@@ -132,10 +132,10 @@ const FunnelHeatmap: React.FC<FunnelHeatmapProps> = ({
 
   const getStageLabels = (stage: string) => {
     const labels = {
-      TOFU: "Awareness",
-      MOFU: "Consideration",
-      BOFU: "Decision",
-      EVFU: "Recommendation",
+      TOFU: "AWARENESS",
+      MOFU: "CONSIDERATION",
+      BOFU: "DECISION",
+      EVFU: "RECOMMENDATION",
     };
     return labels[stage as keyof typeof labels] || stage;
   };
