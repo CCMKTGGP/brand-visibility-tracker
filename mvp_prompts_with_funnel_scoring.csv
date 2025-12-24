@@ -1,21 +1,21 @@
 prompt_id,prompt_text,funnel_stage,base_weight,weight_first,weight_second,weight_third,weight_fourth,weight_fifth,weight_absent,mofu_positive,mofu_conditional,mofu_neutral,mofu_negative,mofu_absent,bofu_yes,bofu_partial,bofu_unclear,bofu_no,bofu_absent,evfu_recommend,evfu_caveat,evfu_neutral,evfu_negative,evfu_absent
-T1,In {region} which companies operate in the {category} space for {audience}?,TOFU,1,1,0.75,0.5,0.3,0.15,0,1,0.75,0.5,0.25,0,1,0.75,0.5,0.25,0,1,0.75,0.5,0.25,0
-T2,Who are the notable providers offering {category} options in {region}?,TOFU,1,1,0.75,0.5,0.3,0.15,0,1,0.75,0.5,0.25,0,1,0.75,0.5,0.25,0,1,0.75,0.5,0.25,0
-T3,What organizations are active in the {category} market in {region}?,TOFU,1,1,0.75,0.5,0.3,0.15,0,1,0.75,0.5,0.25,0,1,0.75,0.5,0.25,0,1,0.75,0.5,0.25,0
-T4,Which companies offer {category} options to {audience} in {region}?,TOFU,1,1,0.75,0.5,0.3,0.15,0,1,0.75,0.5,0.25,0,1,0.75,0.5,0.25,0,1,0.75,0.5,0.25,0
-T5,What are some companies involved in providing {category} in {region}?,TOFU,1,1,0.75,0.5,0.3,0.15,0,1,0.75,0.5,0.25,0,1,0.75,0.5,0.25,0,1,0.75,0.5,0.25,0
-M1,How does {name} compare to {competitor} for {use_case}?,MOFU,,,,,,,,1,0.75,0.5,0.25,0,1,0.75,0.5,0.25,0,1,0.75,0.5,0.25,0
-M2,How is {name} perceived within the {category} market for {audience}?,MOFU,,,,,,,,1,0.75,0.5,0.25,0,1,0.75,0.5,0.25,0,1,0.75,0.5,0.25,0
-M3,Which {category} options in {region} support {use_case}?,MOFU,,,,,,,,1,0.75,0.5,0.25,0,1,0.75,0.5,0.25,0,1,0.75,0.5,0.25,0
-M4,Which {category} options in {region} include {feature_list}?,MOFU,,,,,,,,1,0.75,0.5,0.25,0,1,0.75,0.5,0.25,0,1,0.75,0.5,0.25,0
-M5,How does {name} perform for {use_case} compared to other {category} options?,MOFU,,,,,,,,1,0.75,0.5,0.25,0,1,0.75,0.5,0.25,0,1,0.75,0.5,0.25,0
-B1,Would you recommend {name} to someone choosing among {category} options?,BOFU,,,,,,,,,,,,,1,0.75,0.5,0.25,0,1,0.75,0.5,0.25,0
-B2,For {use_case} is {name} a better choice than other {category} options?,BOFU,,,,,,,,,,,,,1,0.75,0.5,0.25,0,1,0.75,0.5,0.25,0
-B3,Is {name} a good choice for {category} in {region}?,BOFU,,,,,,,,,,,,,1,0.75,0.5,0.25,0,1,0.75,0.5,0.25,0
-B4,If someone is ready to buy {category} would {name} be a suitable choice?,BOFU,,,,,,,,,,,,,1,0.75,0.5,0.25,0,1,0.75,0.5,0.25,0
-B5,Would you recommend {name} to someone ready to buy for {category}?,Is {name} considered one of the top options for {category} in {region}?,BOFU,,,,,,,,,,,,,1,0.75,0.5,0.25,0,1,0.75,0.5,0.25,0
-E1,Is {name} considered trustworthy in {category} in {region}?,EVFU,,,,,,,,,,,,,,,,,,1,0.75,0.5,0.25,0
-E2,What do customers in {region} say after using or buying {name}?,EVFU,,,,,,,,,,,,,,,,,,1,0.75,0.5,0.25,0
-E3,Do customers tend to recommend {name} to others after using it for {use_case}?,EVFU,,,,,,,,,,,,,,,,,,1,0.75,0.5,0.25,0
-E4,Has {name} built a reputation for {feature_list} among customers in {region}?,EVFU,,,,,,,,,,,,,,,,,,1,0.75,0.5,0.25,0
-E5,How does {name} handle long-term customer experience for {use_case}?,EVFU,,,,,,,,,,,,,,,,,,1,0.75,0.5,0.25,0
+T1,In {region} which companies operate in the {category} space for {audience}?,TOFU,1,1,0.75,0.5,0.3,0.15,0,1,0.5,0.25,0.1,0,1,0.5,0.25,0.1,0,1,0.5,0.25,0.1,0
+T2,Who are the notable providers offering {category} options in {region}?,TOFU,1,1,0.75,0.5,0.3,0.15,0,1,0.5,0.25,0.1,0,1,0.5,0.25,0.1,0,1,0.5,0.25,0.1,0
+T3,What organizations are active in the {category} market in {region}?,TOFU,1,1,0.75,0.5,0.3,0.15,0,1,0.5,0.25,0.1,0,1,0.5,0.25,0.1,0,1,0.5,0.25,0.1,0
+T4,Which companies offer {category} options to {audience} in {region}?,TOFU,1,1,0.75,0.5,0.3,0.15,0,1,0.5,0.25,0.1,0,1,0.5,0.25,0.1,0,1,0.5,0.25,0.1,0
+T5,What are some companies involved in providing {category} in {region}?,TOFU,1,1,0.75,0.5,0.3,0.15,0,1,0.5,0.25,0.1,0,1,0.5,0.25,0.1,0,1,0.5,0.25,0.1,0
+M1,How does {name} compare to {competitor} for {use_case}?,MOFU,,,,,,,,1,0.5,0.25,0.1,0,1,0.5,0.25,0.1,0,1,0.5,0.25,0.1,0
+M2,How is {name} perceived within the {category} market for {audience}?,MOFU,,,,,,,,1,0.5,0.25,0.1,0,1,0.5,0.25,0.1,0,1,0.5,0.25,0.1,0
+M3,Which {category} options in {region} support {use_case}?,MOFU,,,,,,,,1,0.5,0.25,0.1,0,1,0.5,0.25,0.1,0,1,0.5,0.25,0.1,0
+M4,Which {category} options in {region} include {feature_list}?,MOFU,,,,,,,,1,0.5,0.25,0.1,0,1,0.5,0.25,0.1,0,1,0.5,0.25,0.1,0
+M5,How does {name} perform for {use_case} compared to other {category} options?,MOFU,,,,,,,,1,0.5,0.25,0.1,0,1,0.5,0.25,0.1,0,1,0.5,0.25,0.1,0
+B1,Would you recommend {name} to someone choosing among {category} options?,BOFU,,,,,,,,,,,,,1,0.5,0.25,0.1,0,1,0.5,0.25,0.1,0
+B2,For {use_case} is {name} a better choice than other {category} options?,BOFU,,,,,,,,,,,,,1,0.5,0.25,0.1,0,1,0.5,0.25,0.1,0
+B3,Is {name} a good choice for {category} in {region}?,BOFU,,,,,,,,,,,,,1,0.5,0.25,0.1,0,1,0.5,0.25,0.1,0
+B4,If someone is ready to buy {category} would {name} be a suitable choice?,BOFU,,,,,,,,,,,,,1,0.5,0.25,0.1,0,1,0.5,0.25,0.1,0
+B5,Would you recommend {name} to someone ready to buy for {category}?,Is {name} considered one of the top options for {category} in {region}?,BOFU,,,,,,,,,,,,1,0.5,0.25,0.1,0,1,0.5,0.25,0.1,0
+E1,Is {name} considered trustworthy in {category} in {region}?,EVFU,,,,,,,,,,,,,,,,,,1,0.5,0.25,0.1,0
+E2,What do customers in {region} say after using or buying {name}?,EVFU,,,,,,,,,,,,,,,,,,1,0.5,0.25,0.1,0
+E3,Do customers tend to recommend {name} to others after using it for {use_case}?,EVFU,,,,,,,,,,,,,,,,,,1,0.5,0.25,0.1,0
+E4,Has {name} built a reputation for {feature_list} among customers in {region}?,EVFU,,,,,,,,,,,,,,,,,,1,0.5,0.25,0.1,0
+E5,How does {name} handle long-term customer experience for {use_case}?,EVFU,,,,,,,,,,,,,,,,,,1,0.5,0.25,0.1,0

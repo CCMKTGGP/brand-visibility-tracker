@@ -325,6 +325,31 @@ export default function ViewLogs({
     return new Date(timestamp).toLocaleString();
   };
 
+  const getMetricLabel = (stage: string, position: number) => {
+    switch (stage) {
+      case "TOFU":
+        return `Rank: ${position}`;
+        
+      case "MOFU":
+        // 1=Positive, 2=Conditional, 3=Neutral, 4=Negative
+        const mofuMap = { 1: "Tone: Positive", 2: "Tone: Conditional", 3: "Tone: Neutral", 4: "Tone: Negative" };
+        return mofuMap[position as keyof typeof mofuMap] || "Tone: Unknown";
+        
+      case "BOFU":
+        // 1=Yes, 2=Partial, 3=Unclear, 4=No
+        const bofuMap = { 1: "Intent: Yes", 2: "Intent: Partial", 3: "Intent: Unclear", 4: "Intent: No" };
+        return bofuMap[position as keyof typeof bofuMap] || "Intent: Unknown";
+        
+      case "EVFU":
+        // 1=Recommend, 2=Caveat, 3=Neutral, 4=Negative
+        const evfuMap = { 1: "Sentiment: Recommend", 2: "Sentiment: Caveat", 3: "Sentiment: Neutral", 4: "Sentiment: Negative" };
+        return evfuMap[position as keyof typeof evfuMap] || "Sentiment: Unknown";
+        
+      default:
+        return `Position: ${position}`;
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -648,8 +673,7 @@ export default function ViewLogs({
                                             </span>
                                             {prompt.mentionPosition > 0 && (
                                               <span className="text-xs bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300 px-2 py-1 rounded">
-                                                Mentioned at position{" "}
-                                                {prompt.mentionPosition}
+                                                {getMetricLabel(log.stage, prompt.mentionPosition)}
                                               </span>
                                             )}
                                           </div>
