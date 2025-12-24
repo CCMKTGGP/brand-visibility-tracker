@@ -107,7 +107,7 @@ export default function CloneBrandPage({
 
   // Prepare initial values for the form
   const initialValues = {
-    name: brandData.name ? `${brandData.name} (Copy)` : "",
+    name: brandData.name ? `${brandData.name}` : "",
     category: brandData.category || "",
     region: brandData.region || "",
     targetAudience: brandData.target_audience || [],
@@ -135,8 +135,8 @@ export default function CloneBrandPage({
               Clone Brand
             </h1>
             <p className="mt-2 text-lg text-gray-600 dark:text-gray-400">
-              Create a copy of &quot;{brandData.name}&quot; with pre-filled data.
-              You can modify any fields before creating.
+              Create a copy of &quot;{brandData.name}&quot; with pre-filled
+              data. You can modify any fields before creating.
             </p>
           </div>
         </div>
@@ -158,4 +158,3 @@ export default function CloneBrandPage({
     </div>
   );
 }
-

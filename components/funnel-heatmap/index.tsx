@@ -18,6 +18,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
+import moment from "moment";
 
 interface HeatmapData {
   stages: string[];
@@ -129,12 +130,22 @@ const FunnelHeatmap: React.FC<FunnelHeatmapProps> = ({
     }
   };
 
-  const getStageLabel = (stage: string) => {
+  const getStageLabels = (stage: string) => {
     const labels = {
       TOFU: "Awareness",
       MOFU: "Consideration",
       BOFU: "Decision",
       EVFU: "Recommendation",
+    };
+    return labels[stage as keyof typeof labels] || stage;
+  };
+
+  const getStageSubLabels = (stage: string) => {
+    const labels = {
+      TOFU: "TOFU (Top of Funnel)",
+      MOFU: "MOFU (Middle of Funnel)",
+      BOFU: "BOFU (Bottom of Funnel)",
+      EVFU: "EVFU (Extended Value Funnel)",
     };
     return labels[stage as keyof typeof labels] || stage;
   };
@@ -392,10 +403,10 @@ const FunnelHeatmap: React.FC<FunnelHeatmapProps> = ({
               {/* Stage Label */}
               <div className="flex flex-col justify-center p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
                 <div className="font-medium text-gray-900 dark:text-white text-sm">
-                  {stage}
+                  {getStageLabels(stage)}
                 </div>
                 <div className="text-xs text-gray-600 dark:text-gray-400">
-                  {getStageLabel(stage)}
+                  {getStageSubLabels(stage)}
                 </div>
                 <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                   Avg: {data.summary.avg_score_by_stage[stage] || 0}%
@@ -544,11 +555,19 @@ const FunnelHeatmap: React.FC<FunnelHeatmapProps> = ({
               </div>
             </div>
           </div>
-          <div className="text-right">
-            <div className="text-xs text-gray-500 dark:text-gray-400">
-              Click cells for details • Hover for tooltips
+          {isExporting ? (
+            <div className="text-right">
+              <div className="text-xs text-gray-500 dark:text-gray-400">
+                {moment().format("MMM D, YYYY | hh:mm:ss A")}
+              </div>
             </div>
-          </div>
+          ) : (
+            <div className="text-right">
+              <div className="text-xs text-gray-500 dark:text-gray-400">
+                Click cells for details • Hover for tooltips
+              </div>
+            </div>
+          )}
         </div>
       </div>
 

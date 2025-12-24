@@ -180,7 +180,13 @@ export class AIService {
       case "MOFU":
         return {
           systemMessage: `You are an analytical model tasked with evaluating a Large Language Model's response to a Middle-of-Funnel (MOFU) market visibility question.
-          Your job is to extract structured insights about brand positioning, sentiment, and competitive context from the given text. Avoid using hedge words like 'likely', 'probably', 'seems', 'appears' - be direct and confident in your assessments.`,
+          Your task is to classify the "tone" of the mention.
+          Tone Definitions:
+          - "positive": The brand is mentioned with clear praise, benefits, or as a strong contender.
+          - "conditional": The brand is mentioned with qualifiers (e.g., "good for X but...", "if you need Y...").
+          - "neutral": The brand is mentioned in a list or factually without strong opinion.
+          - "negative": The brand is mentioned with criticism or as a worse option.
+          - "absent": The brand is not mentioned.`,
           prompt: `
           Brand Context:
           ${brandSummary}
@@ -192,20 +198,18 @@ export class AIService {
           ${response}
 
           Follow these steps:
-          1. Identify whether the target brand ("${name}") is mentioned in the response.
-          2. Determine how it is positioned (positively, negatively, or neutrally).
+          1. Identify whether the target brand ("${name}") is mentioned.
+          2. Classify the TONE of the mention according to the definitions above.
           3. Extract any specific strengths, weaknesses, or differentiators attributed to the brand.
           4. If the response compares ${name} to competitors (like ${competitors?.join(
             ", "
-          )}), note the comparison and who is favored.
-          5. Extract all competitor brands mentioned.
-          6. Summarize the overall sentiment tone toward ${name} in one word: "positive", "neutral", or "negative".
+          )}), note the comparison.
 
           Format strictly like this without the markdown formatting, Make sure all keys and strings are properly quoted and commas are placed correctly.
           Example:
           {
             "tone": "positive|conditional|neutral|negative|absent",
-            "comment": "short summary of how ${name} is portrayed or compared, if positive, provide a short comment on why it is positive, if conditional / neutral / negative/ absent, provide a short comment on why it is conditional / neutral / negative / absent and how it can be improved to be positive",
+            "comment": "short summary of how ${name} is portrayed, specifically justifying the chosen tone (e.g. 'Categorized as conditional because the response said...').",
             "sentiment_distribution": {
               "overall": "positive|neutral|negative",
               "confidence": number <0-100>,
@@ -221,7 +225,13 @@ export class AIService {
       case "BOFU":
         return {
           systemMessage: `You are an analytical model tasked with evaluating a Large Language Model's response to a Bottom-of-Funnel (BOFU) market visibility question. 
-          Your job is to determine how "${name}" is portrayed in terms of purchase readiness, trustworthiness, and conversion potential. Avoid using hedge words like 'likely', 'probably', 'seems', 'appears' - be direct and confident in your assessments.`,
+          Your task is to classify the "intent" or "recommendation strength".
+          Intent Definitions:
+          - "yes": The response explicitly recommends the brand or confirms it is a good choice.
+          - "partial": The response suggests the brand is one of several good options, or good for specific cases.
+          - "unclear": The response is vague, non-committal, or provides a generic list without guidance.
+          - "no": The response discourages choosing this brand or recommends others over it.
+          - "absent": The brand is not mentioned.`,
           prompt: `
           Brand Context:
           ${brandSummary}
@@ -233,17 +243,15 @@ export class AIService {
           ${response}
 
           Follow these steps:
-          1. Check if the target brand ("${name}") is mentioned in the response.
-          2. Determine if the response encourages, discourages, or is neutral about buying or signing up with the brand.
-          3. Identify any mention of pricing, free trials, consultations, or offers.
-          4. Assess how reliable or trustworthy the brand is portrayed.
-          5. Extract the overall tone or sentiment toward purchasing intent.
+          1. Check if the target brand ("${name}") is mentioned.
+          2. Classify the INTENT of the response according to the definitions above.
+          3. Identify any mention of pricing, free trials, or specific offers that signal intent.
 
           Format strictly like this without the markdown formatting, Make sure all keys and strings are properly quoted and commas are placed correctly.
           Example:
           {
             "intent": "yes|partial|unclear|no|absent",
-            "comment": "short summary of how the response portrays ${name} in terms of readiness to buy or recommend, if yes, provide a short comment on why it is yes, if partial / unclear / no / absent, provide a short comment on why it is partial / unclear / no / absent and how it can be improved to be yes",
+            "comment": "short summary justifying the intent classification (e.g. 'Classified as yes because the response said 'highly recommended'').",
             "sentiment_distribution": {
               "overall": "positive|neutral|negative",
               "confidence": number <0-100>,
@@ -259,7 +267,13 @@ export class AIService {
       case "EVFU":
         return {
           systemMessage: `You are an analytical model tasked with evaluating a Large Language Model's response to an End-of-Funnel (EVFU) market visibility question. 
-          Your goal is to extract insights on post-purchase reputation, customer satisfaction, and advocacy sentiment for "${name}". Avoid using hedge words like 'likely', 'probably', 'seems', 'appears' - be direct and confident in your assessments.`,
+          Your task is to classify the "sentiment" regarding reputation and advocacy.
+          Sentiment Definitions:
+          - "recommend": The response indicates customers actively recommend or love the brand (advocacy).
+          - "caveat": The response mentions reputational pros and cons, or minor issues.
+          - "neutral": The response is factual about the brand's existence or features without reputation commentary.
+          - "negative": The response mentions bad reputation, complaints, or mistrust.
+          - "absent": The brand is not mentioned.`,
           prompt: `
           Brand Context:
           ${brandSummary}
@@ -271,18 +285,15 @@ export class AIService {
           ${response}
 
           Follow these steps:
-          1. Check if the target brand ("${name}") is mentioned or referenced in the response.
-          2. Determine the overall sentiment of how the brand is perceived after purchase or client engagement.
-          3. Identify if the response indicates customer satisfaction, trust, loyalty, or advocacy.
-          4. Extract any direct or implied recommendation signals (e.g., “people would recommend,” “clients are happy,” “long-term relationships,” etc.).
-          5. Identify any weaknesses, concerns, or mixed feedback mentioned.
-          6. Summarize the overall brand reputation perception.
+          1. Check if the target brand ("${name}") is mentioned.
+          2. Classify the SENTIMENT of the response according to the definitions above.
+          3. Identify signals of trust, loyalty, or advocacy.
 
           Format strictly like this without the markdown formatting, Make sure all keys and strings are properly quoted and commas are placed correctly.
           Example:
           {
             "sentiment": "recommend|caveat|neutral|negative|absent",
-            "comment": "short summary of overall reputation and advocacy perception, if recommend, provide a short comment on why it is recommend, if caveat / neutral / negative / absent, provide a short comment on why it is caveat / neutral / negative / absent and how it can be improved to be recommend",
+            "comment": "short summary justifying the sentiment classification (e.g. 'Classified as recommend because response mentioned 'loyal customer base'').",
             "sentiment_distribution": {
               "overall": "positive|neutral|negative",
               "confidence": number <0-100>,
