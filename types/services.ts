@@ -48,21 +48,6 @@ export interface SentimentAnalysis {
 }
 
 /**
- * Stage-specific scoring weights for different funnel stages
- */
-export interface StageSpecificWeights {
-  base_weight: number;
-  // TOFU weights
-  position_weights?: Record<string, number>;
-  // MOFU weights
-  mofu_scale?: Record<string, number>;
-  // BOFU weights
-  bofu_scale?: Record<string, number>;
-  // EVFU weights
-  evfu_scale?: Record<string, number>;
-}
-
-/**
  * AI analysis result for a single brand analysis
  */
 export interface AIAnalysisResult {
@@ -402,7 +387,6 @@ export interface ProcessedPrompt {
   prompt_id: string;
   prompt_text: string;
   funnel_stage: AnalysisStage;
-  weights: StageSpecificWeights;
 }
 
 /**

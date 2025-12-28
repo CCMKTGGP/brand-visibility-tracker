@@ -13,7 +13,7 @@ B1,Would you recommend {name} to someone choosing among {category} options?,BOFU
 B2,For {use_case} is {name} a better choice than other {category} options?,BOFU,,,,,,,,,,,,,1,0.5,0.25,0.1,0,1,0.5,0.25,0.1,0
 B3,Is {name} a good choice for {category} in {region}?,BOFU,,,,,,,,,,,,,1,0.5,0.25,0.1,0,1,0.5,0.25,0.1,0
 B4,If someone is ready to buy {category} would {name} be a suitable choice?,BOFU,,,,,,,,,,,,,1,0.5,0.25,0.1,0,1,0.5,0.25,0.1,0
-B5,Would you recommend {name} to someone ready to buy for {category}?,Is {name} considered one of the top options for {category} in {region}?,BOFU,,,,,,,,,,,,1,0.5,0.25,0.1,0,1,0.5,0.25,0.1,0
+B5,Is {name} considered one of the top options for {category} in {region}?,BOFU,,,,,,,,,,,,1,0.5,0.25,0.1,0,1,0.5,0.25,0.1,0
 E1,Is {name} considered trustworthy in {category} in {region}?,EVFU,,,,,,,,,,,,,,,,,,1,0.5,0.25,0.1,0
 E2,What do customers in {region} say after using or buying {name}?,EVFU,,,,,,,,,,,,,,,,,,1,0.5,0.25,0.1,0
 E3,Do customers tend to recommend {name} to others after using it for {use_case}?,EVFU,,,,,,,,,,,,,,,,,,1,0.5,0.25,0.1,0

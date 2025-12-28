@@ -101,7 +101,7 @@ const FunnelHeatmap: React.FC<FunnelHeatmapProps> = ({
       return { backgroundColor: "#FC8D59", color: "white" };
     } else if (score > 33 && score <= 50) {
       return { backgroundColor: "#FEE08B", color: "black" };
-    } else if (score >= 51 && score <= 67) {
+    } else if (score > 50 && score <= 67) {
       return { backgroundColor: "#D9EF8B", color: "black" };
     } else if (score > 67 && score <= 83) {
       return { backgroundColor: "#91CF60", color: "black" };

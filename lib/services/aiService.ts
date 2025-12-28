@@ -1,10 +1,8 @@
 import { AIModel, AnalysisStage, IBrand } from "@/types/brand";
 import {
   SentimentAnalysis,
-  StageSpecificWeights,
   AIAnalysisResult,
   ParsedAIResponse,
-  StageAnalysisPrompt,
   AIAnalysisResults,
   CompetitorData,
   DomainCitation,
@@ -13,325 +11,375 @@ import { LLMService } from "./llmService";
 import { PromptService } from "./promptService";
 
 /**
- * AI Service Class
+ * ! AI Service Class - Core Brand Analysis Engine
  *
- * Handles all AI-related operations including:
- * - Brand analysis using multiple AI models (ChatGPT, Claude, Gemini)
- * - Stage-specific analysis (TOFU, MOFU, BOFU, EVFU)
+ * This service orchestrates all AI-powered brand analysis operations across
+ * multiple LLM providers (ChatGPT, Claude, Gemini) and marketing funnel stages.
+ *
+ * @architecture
+ * - Uses LLMService for direct AI model communication
+ * - Uses PromptService for prompt template management
+ * - Implements robust JSON parsing to handle unpredictable LLM responses
+ * - Provides stage-specific scoring logic (TOFU, MOFU, BOFU, EVFU)
+ *
+ * @key_features
  * - Multi-prompt analysis with weighted scoring
- * - Sentiment analysis and response parsing
+ * - Automatic competitor and domain citation extraction
+ * - Sentiment analysis and confidence scoring
+ * - Graceful error handling with detailed logging
  *
- * This service acts as the main orchestrator for AI analysis workflows,
- * coordinating between different AI models and processing their responses
- * into structured, actionable insights.
+ * @author Your Team
+ * @version 2.0.0
  */
 export class AIService {
+  // ============================================================================
+  // * PRIVATE UTILITY METHODS
+  // ============================================================================
+
   /**
-   * Computes stage-specific scores based on AI response values and predefined weights
+   * * Robust JSON extraction from unpredictable LLM responses
    *
-   * Each funnel stage has different scoring criteria:
-   * - TOFU: Position-based scoring (first, second, third, etc.)
-   * - MOFU: Tone-based scoring (positive, conditional, neutral, etc.)
-   * - BOFU: Intent-based scoring (yes, partial, unclear, etc.)
-   * - EVFU: Sentiment-based scoring (recommend, caveat, neutral, etc.)
+   * LLMs often return JSON wrapped in markdown, mixed with text, or with syntax errors.
+   * This method implements multiple extraction strategies to handle all common formats.
    *
-   * @param stage - The marketing funnel stage being analyzed
-   * @param value - The AI response value to score
-   * @param weights - Stage-specific weight configuration
-   * @param baseWeight - Base weight multiplier for the score
-   * @returns Object containing raw score and weighted score
+   * @strategy_1 Remove markdown code fences (```json ... ``` or ``` ... ```)
+   * @strategy_2 Extract JSON from mixed text using regex
+   * @strategy_3 Fix trailing commas (common LLM mistake)
+   * @strategy_4 Remove comments that break JSON parsing
+   * @strategy_5 Attempt parsing with standard JSON.parse
+   * @strategy_6 Fallback: fix single quotes and retry
+   *
+   * @param response - Raw string response from LLM
+   * @returns Parsed JavaScript object
+   * @throws Error with detailed context if all strategies fail
+   *
+   * @example
+   * // Handles all these formats:
+   * extractAndParseJSON('```json\n{"score": 85}```')
+   * extractAndParseJSON('Here is the analysis: {"score": 85}')
+   * extractAndParseJSON("{'score': 85,}") // Single quotes + trailing comma
    */
-  private static computeStageSpecificScore(
-    stage: AnalysisStage,
-    value: string,
-    weights: StageSpecificWeights,
-    baseWeight: number
-  ): { rawScore: number; weightedScore: number } {
-    let stageMap: Record<string, number> = {};
-
-    // Map the appropriate weight scale based on the funnel stage
-
-    switch (stage) {
-      case "TOFU":
-        stageMap = weights.position_weights || {};
-        break;
-      case "MOFU":
-        stageMap = weights.mofu_scale || {};
-        break;
-      case "BOFU":
-        stageMap = weights.bofu_scale || {};
-        break;
-      case "EVFU":
-        stageMap = weights.evfu_scale || {};
-        break;
+  private static extractAndParseJSON(response: string): any {
+    // ? Validate input
+    if (!response || typeof response !== "string") {
+      throw new Error("Invalid response: empty or non-string");
     }
 
-    const rawScore = stageMap[value] ?? 0;
-    const weightedScore = rawScore * baseWeight;
-    return { rawScore, weightedScore };
+    let cleaned = response.trim();
+
+    // * Strategy 1: Remove markdown code fences
+    // Matches: ```json\n{...}\n``` or ```{...}```
+    cleaned = cleaned.replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/, "");
+
+    // * Strategy 2: Extract JSON object/array from mixed text
+    // Looks for outermost { } or [ ] in the string
+    const jsonMatch = cleaned.match(/(\{[\s\S]*\}|\[[\s\S]*\])/);
+    if (jsonMatch) {
+      cleaned = jsonMatch[1];
+    }
+
+    // * Strategy 3: Remove trailing commas before closing braces/brackets
+    // Fixes: {"key": "value",} → {"key": "value"}
+    cleaned = cleaned.replace(/,(\s*[}\]])/g, "$1");
+
+    // * Strategy 4: Remove comments (JSON doesn't allow these)
+    cleaned = cleaned.replace(/\/\*[\s\S]*?\*\//g, ""); // Block comments
+    cleaned = cleaned.replace(/\/\/.*/g, ""); // Line comments
+
+    // * Strategy 5: Standard JSON parsing attempt
+    try {
+      const parsed = JSON.parse(cleaned);
+
+      // ? Validate the parsed result is an object
+      if (!parsed || typeof parsed !== "object") {
+        throw new Error("Parsed result is not an object");
+      }
+
+      return parsed;
+    } catch (parseError) {
+      // * Strategy 6: Last resort - fix single quotes and retry
+      try {
+        // LLMs sometimes use single quotes instead of double quotes
+        const singleQuoteFix = cleaned.replace(/'/g, '"');
+        return JSON.parse(singleQuoteFix);
+      } catch {
+        // ! All strategies failed - provide detailed error context
+        throw new Error(
+          `JSON parsing failed after multiple strategies.\n` +
+            `Error: ${
+              parseError instanceof Error ? parseError.message : "Unknown"
+            }\n` +
+            `Response preview (first 300 chars): ${response.substring(
+              0,
+              300
+            )}...`
+        );
+      }
+    }
   }
 
   /**
-   * Generates stage-specific analysis prompts for AI evaluation
+   * * Validates that parsed JSON contains all required fields
    *
-   * Creates tailored prompts that instruct the AI to analyze responses
-   * according to the specific criteria of each marketing funnel stage.
-   * Each stage has unique evaluation parameters and expected response formats.
+   * Ensures the LLM returned a complete response with all necessary data.
+   * This prevents downstream errors from missing or invalid fields.
    *
-   * @param prompt - The original question/prompt that was asked
-   * @param response - The AI model's response to be analyzed
-   * @param stage - The marketing funnel stage (TOFU, MOFU, BOFU, EVFU)
-   * @param brandData - Brand information for context
-   * @returns Structured prompt configuration with system message and user prompt
+   * @param parsed - The parsed JSON object to validate
+   * @throws Error if required fields are missing or invalid
+   *
+   * @validation_rules
+   * - Must have: score, confidence, rationale, sentiment
+   * - Score must be a valid number (not NaN or string)
+   * - Sentiment must be an object (not null or primitive)
    */
-  private static getStageSpeficAnalysisPrompt(
-    prompt: string,
-    response: string,
-    stage: AnalysisStage,
-    brandData: IBrand
-  ): StageAnalysisPrompt {
-    const {
-      name,
-      category,
-      region,
-      target_audience,
-      use_case,
-      competitors,
-      feature_list,
-    } = brandData;
+  private static validateParsedResponse(parsed: any): void {
+    // ? Check for required fields
+    const requiredFields = ["score", "confidence", "rationale", "sentiment"];
+    const missingFields = requiredFields.filter((field) => !(field in parsed));
 
-    // Generate comprehensive brand context for AI analysis
-    const brandSummary = `
-        Brand Context:
-        - Brand Name: ${name || "Unknown Brand"}
-        - Category: ${category || "General Business Services"}
-        - Region: ${region || "Global"}
-        - Target Audience: ${
-          (target_audience && target_audience.join(", ")) || "Businesses"
-        }
-        - Use Case: ${use_case || "General Needs"}
-        - Competitors: ${
-          (competitors && competitors.join(", ")) || "None specified"
-        }
-        - Key Features: ${
-          (feature_list && feature_list.slice(0, 3).join(", ")) ||
-          "Core Offerings"
-        }`;
+    if (missingFields.length > 0) {
+      throw new Error(
+        `Missing required fields in AI response: ${missingFields.join(
+          ", "
+        )}\n` + `Available fields: ${Object.keys(parsed).join(", ")}`
+      );
+    }
 
+    // ? Validate score is a valid number
+    if (typeof parsed.score !== "number" || isNaN(parsed.score)) {
+      throw new Error(`Invalid score value: ${parsed.score} (expected number)`);
+    }
+
+    // ? Validate sentiment structure
+    if (!parsed.sentiment || typeof parsed.sentiment !== "object") {
+      throw new Error("Invalid or missing sentiment object");
+    }
+  }
+
+  // ============================================================================
+  // * SCORING SYSTEM MESSAGES - Stage-Specific Instructions
+  // ============================================================================
+
+  /**
+   * * Generates stage-specific scoring instructions for the AI
+   *
+   * Each marketing funnel stage requires different evaluation criteria:
+   *
+   * @TOFU (Top of Funnel - Discovery)
+   * - Position-based scoring (where brand appears in rankings)
+   * - Focus: Visibility and awareness, not quality assessment
+   *
+   * @MOFU (Middle of Funnel - Evaluation)
+   * - Evidence-based scoring (explicit strengths/weaknesses)
+   * - Penalizes speculation and hypothetical language
+   *
+   * @BOFU (Bottom of Funnel - Decision)
+   * - Recommendation-based scoring (clear purchase signals)
+   * - Requires explicit recommendation language
+   *
+   * @EVFU (Experience/Validation - Post-Purchase)
+   * - Reputation-based scoring (customer sentiment evidence)
+   * - Focuses on trust, advocacy, and satisfaction signals
+   *
+   * @param stage - Marketing funnel stage
+   * @returns Detailed system message with scoring rules
+   */
+  private static getScoringSystemMessage(stage: AnalysisStage): string {
     switch (stage) {
       case "TOFU":
-        return {
-          systemMessage: `You are an analytical model tasked with evaluating a Large Language Model's response to a Top-of-Funnel (TOFU) market visibility question. 
-          Your job is to extract structured insights about brand visibility from the given text. Avoid using hedge words like 'likely', 'probably', 'seems', 'appears' - be direct and confident in your assessments.`,
-          prompt: `
-          Brand Context:
-          ${brandSummary}
+        // ! TOFU: Position matters, NOT sentiment
+        return `
+          You are a market perception scoring engine.
 
-          Question asked:
-          ${prompt}
+          Your task is to score a brand based ONLY on its POSITION and VISIBILITY
+          within a market discovery response.
 
-          Response to Evaluate:
-          ${response}
+          This is a TOFU (Top of Funnel) question.
+          Scoring must be POSITION-BASED, not sentiment-based.
 
-          Follow these steps:
-          1. Identify if the brand "${name}" is mentioned or implied in the response.  
-          2. Extract a ranked list of all brands or companies mentioned.  
-          3. Determine the target brand's relative rank or visibility.  
-          4. If the brand is not mentioned, mark it as "absent."
-          5. Extract all competitor companies mentioned with their context.
-          6. Identify likely source domains where this information comes from.
-          7. Add any short contextual comment about competitors or reasons for absence.
+          Evaluate:
+          - Whether the brand is mentioned at all
+          - How prominently it appears (primary, secondary, peripheral)
+          - Whether it is framed as a notable or relevant option
 
-          Format strictly like this without the markdown formatting, Make sure all keys and strings are properly quoted and commas are placed correctly.
-          Example:
-          { 
-            "brand_mentioned": true/false,
-            "rank": "first|second|third|fourth|fifth|absent",
-            "comment": "short comment based on the question asked and the response to evaluate, if the brand is mentioned, provide a short comment on why it is mentioned in the given rank, if the brand is not mentioned, provide a short comment on why it is not mentioned and how it can be improved to be mentioned in the given rank",
-            "competitors_mentioned": [
-              {
-                "name": "Company Name",
-                "normalized_name": "company-name",
-                "confidence_score": 95,
-                "source_domains": ["domain1.com", "domain2.com"]
-              }
-            ],
-            "domain_citations": [
-              {
-                "domain": "example.com",
-                "authority_score": 85,
-                "source_type": "news|review|industry|academic|social|other",
-                "relevance": "high|medium|low",
-                "reasoning": "why this domain would have this info"
-              }
-            ],
-            "sentiment_distribution": {
-              "overall": "positive|neutral|negative",
-              "confidence": number <0-100>,
-              "distribution": {
-                "positive": number <0-100>,
-                "neutral": number <0-100>,
-                "negative": number <0-100>,
-                "strongly_positive": number <0-100>,
-              }
-            }
-          }`.trim(),
-        };
+          DO NOT infer quality, trust, or recommendation.
+          DO NOT reward sentiment, adjectives, or praise.
+          DO NOT assume positivity if the brand is merely listed.
+
+          Scoring rules (0–100, continuous):
+          - 0: Brand not mentioned at all
+          - 15: Brand mentioned on the fifth position
+          - 30: Brand mentioned on the fourth position
+          - 50: Brand mentioned on the third position
+          - 75: Brand mentioned on the second position
+          - 100: Brand mentioned on the first position
+
+          You must be conservative and score from the data only.
+
+          For TOFU:
+          - If the brand is not mentioned, the score MUST be 0.
+          - If the brand is mentioned, the score MUST be based on the position of the brand in the response.
+          - If the brand is mentioned multiple times, the score MUST be the highest score for that brand.
+          - If the brand is mentioned in a different position each time, the score MUST be the average of the scores for that brand.
+          `.trim();
+
       case "MOFU":
-        return {
-          systemMessage: `You are an analytical model tasked with evaluating a Large Language Model's response to a Middle-of-Funnel (MOFU) market visibility question.
-          Your task is to classify the "tone" of the mention.
-          Tone Definitions:
-          - "positive": The brand is mentioned with clear praise, benefits, or as a strong contender.
-          - "conditional": The brand is mentioned with qualifiers (e.g., "good for X but...", "if you need Y...").
-          - "neutral": The brand is mentioned in a list or factually without strong opinion.
-          - "negative": The brand is mentioned with criticism or as a worse option.
-          - "absent": The brand is not mentioned.`,
-          prompt: `
-          Brand Context:
-          ${brandSummary}
+        // ! MOFU: Evidence required, speculation penalized
+        return `
+          You are a market perception scoring engine.
 
-          Question asked:
-          ${prompt}
+          This is a MOFU (Middle of Funnel) evaluation question.
 
-          Response to Evaluate:
-          ${response}
+          You MUST score the brand based ONLY on EXPLICIT EVIDENCE present in the response.
+          Do NOT infer, assume, or speculate beyond what is directly stated.
 
-          Follow these steps:
-          1. Identify whether the target brand ("${name}") is mentioned.
-          2. Classify the TONE of the mention according to the definitions above.
-          3. Extract any specific strengths, weaknesses, or differentiators attributed to the brand.
-          4. If the response compares ${name} to competitors (like ${competitors?.join(
-            ", "
-          )}), note the comparison.
+          Evidence includes:
+          - Specific, concrete attributes tied to the brand
+          - Clear strengths or weaknesses explicitly described
+          - Direct comparisons supported by facts or examples
 
-          Format strictly like this without the markdown formatting, Make sure all keys and strings are properly quoted and commas are placed correctly.
-          Example:
-          {
-            "tone": "positive|conditional|neutral|negative|absent",
-            "comment": "short summary of how ${name} is portrayed, specifically justifying the chosen tone (e.g. 'Categorized as conditional because the response said...').",
-            "sentiment_distribution": {
-              "overall": "positive|neutral|negative",
-              "confidence": number <0-100>,
-              "distribution": {
-                "positive": number <0-100>,
-                "neutral": number <0-100>,
-                "negative": number <0-100>,
-                "strongly_positive": number <0-100>,
-              }
-            }
-          }`.trim(),
-        };
+          The following are NOT evidence and MUST be penalized:
+          - Hypothetical language (e.g. "might", "could", "would")
+          - Generic industry expectations
+          - Balanced narratives without factual grounding
+          - Statements admitting lack of data or uncertainty
+
+          Evaluate:
+          - Strengths vs weaknesses
+          - Clarity of differentiation
+          - Perceived fit for the use case
+          - Balance of positive vs negative signals
+
+          DO NOT increase score solely because the brand is mentioned.
+          DO NOT treat factual descriptions as positive by default.
+          If evaluation is mixed or conditional, score neutrally.
+
+          Scoring scale (0–100, continuous):
+          - 0–33: Negative evaluation, limitations, criticism
+          - 34–66: Mixed, neutral, factual, or unclear evaluation
+          - 67–100: Strong, favorable evaluation and perceived fit
+
+          Most MOFU scores should fall between 20 and 60.
+          Reserve scores above 85 only for clearly superior evaluations.
+
+          For MOFU:
+          - If evaluation is speculative, generic, or lacks evidence, explain that the brand is being evaluated based on assumptions rather than proof.
+          - Improvement guidance must focus on publishing concrete comparisons, feature proof, case studies, or third-party validation.
+          `.trim();
+
       case "BOFU":
-        return {
-          systemMessage: `You are an analytical model tasked with evaluating a Large Language Model's response to a Bottom-of-Funnel (BOFU) market visibility question. 
-          Your task is to classify the "intent" or "recommendation strength".
-          Intent Definitions:
-          - "yes": The response explicitly recommends the brand or confirms it is a good choice.
-          - "partial": The response suggests the brand is one of several good options, or good for specific cases.
-          - "unclear": The response is vague, non-committal, or provides a generic list without guidance.
-          - "no": The response discourages choosing this brand or recommends others over it.
-          - "absent": The brand is not mentioned.`,
-          prompt: `
-          Brand Context:
-          ${brandSummary}
+        // ! BOFU: Explicit recommendations required
+        return `
+          You are a market perception scoring engine.
 
-          Question asked:
-          ${prompt}
+          This is a BOFU (Bottom of Funnel) decision-stage question.
 
-          Response to Evaluate:
-          ${response}
+          You MUST score the brand based ONLY on EXPLICIT, EVIDENCE-BASED RECOMMENDATION SIGNALS.
+          Do NOT infer intent, trust, or preference unless it is clearly stated.
 
-          Follow these steps:
-          1. Check if the target brand ("${name}") is mentioned.
-          2. Classify the INTENT of the response according to the definitions above.
-          3. Identify any mention of pricing, free trials, or specific offers that signal intent.
+          Valid evidence includes:
+          - Direct recommendation language ("recommend", "best choice", "strong option")
+          - Clear preference over alternatives with stated reasons
+          - Explicit buying signals (pricing suitability, readiness, fit confirmation)
 
-          Format strictly like this without the markdown formatting, Make sure all keys and strings are properly quoted and commas are placed correctly.
-          Example:
-          {
-            "intent": "yes|partial|unclear|no|absent",
-            "comment": "short summary justifying the intent classification (e.g. 'Classified as yes because the response said 'highly recommended'').",
-            "sentiment_distribution": {
-              "overall": "positive|neutral|negative",
-              "confidence": number <0-100>,
-              "distribution": {
-                "positive": number <0-100>,
-                "neutral": number <0-100>,
-                "negative": number <0-100>,
-                "strongly_positive": number <0-100>,
-              }
-            }
-          }`.trim(),
-        };
+          The following MUST be penalized:
+          - Conditional language ("might be", "could be suitable", "depends on")
+          - Balanced or neutral comparisons without a decision
+          - Hypothetical scenarios
+          - Admissions of uncertainty or lack of data
+
+          DO NOT score based on features alone.
+          DO NOT reward neutral mentions.
+          If no recommendation is made, the score MUST be ≤66.
+
+          Scoring scale (0–100, continuous):
+          - 0–33: Not recommended, discouraged, or inferior choice
+          - 34–66: Conditional, weak, or neutral recommendation
+          - 67–100: Clear, confident recommendation or preference
+
+          Only score above 85 when the brand is presented as an obvious or best choice.
+
+          For BOFU:
+          - If the response does not clearly recommend the brand, explain that the decision signal is weak or conditional.
+          - Improvement guidance must focus on clarity, decisiveness, pricing fit, or explicit recommendation signals.
+          `.trim();
+
       case "EVFU":
-        return {
-          systemMessage: `You are an analytical model tasked with evaluating a Large Language Model's response to an End-of-Funnel (EVFU) market visibility question. 
-          Your task is to classify the "sentiment" regarding reputation and advocacy.
-          Sentiment Definitions:
-          - "recommend": The response indicates customers actively recommend or love the brand (advocacy).
-          - "caveat": The response mentions reputational pros and cons, or minor issues.
-          - "neutral": The response is factual about the brand's existence or features without reputation commentary.
-          - "negative": The response mentions bad reputation, complaints, or mistrust.
-          - "absent": The brand is not mentioned.`,
-          prompt: `
-          Brand Context:
-          ${brandSummary}
+        // ! EVFU: Customer evidence and reputation signals
+        return `
+          You are a market perception scoring engine.
 
-          Question asked:
-          ${prompt}
+          This is an EVFU (Experience / Validation Funnel) question.
 
-          Response to Evaluate:
-          ${response}
+          You MUST score the brand based ONLY on EXPLICIT POST-PURCHASE EVIDENCE.
+          Do NOT assume customer satisfaction, trust, or advocacy.
 
-          Follow these steps:
-          1. Check if the target brand ("${name}") is mentioned.
-          2. Classify the SENTIMENT of the response according to the definitions above.
-          3. Identify signals of trust, loyalty, or advocacy.
+          Valid evidence includes:
+          - Explicit mentions of customer reviews or feedback
+          - Statements about reputation, trust, or repeat usage
+          - Advocacy signals (recommendations, loyalty, word-of-mouth)
+          - Consistent experience over time
 
-          Format strictly like this without the markdown formatting, Make sure all keys and strings are properly quoted and commas are placed correctly.
-          Example:
-          {
-            "sentiment": "recommend|caveat|neutral|negative|absent",
-            "comment": "short summary justifying the sentiment classification (e.g. 'Classified as recommend because response mentioned 'loyal customer base'').",
-            "sentiment_distribution": {
-              "overall": "positive|neutral|negative",
-              "confidence": number <0-100>,
-              "distribution": {
-                "positive": number <0-100>,
-                "neutral": number <0-100>,
-                "negative": number <0-100>,
-                "strongly_positive": number <0-100>,
-              }
-            }
-          }`.trim(),
-        };
+          The following MUST be penalized:
+          - Generic claims about quality or service
+          - Hypothetical or inferred customer sentiment
+          - Statements about what customers "would" or "might" feel
+          - Absence of customer or reputation evidence
+
+          DO NOT assume positivity if evidence is absent.
+          DO NOT infer customer sentiment unless explicitly stated.
+
+          Scoring scale (0–100, continuous):
+          - 0–33: Negative experiences, trust issues, dissatisfaction
+          - 34–66: Limited, mixed, or unclear validation
+          - 67–100: Strong trust, advocacy, and positive reinforcement
+
+          Scores above 85 require clear evidence of customer confidence or advocacy.
+
+          For EVFU:
+          - If customer trust or advocacy is not explicitly mentioned, explain that post-purchase validation is missing.
+          - Improvement guidance must focus on surfacing reviews, testimonials, reputation signals, or long-term customer outcomes.
+          `.trim();
 
       default:
-        throw new Error(`Unknown analysis stage: ${stage}`);
+        throw new Error("Invalid stage");
     }
   }
 
+  // ============================================================================
+  // * AI RESPONSE PARSING - Converts Raw LLM Output to Structured Data
+  // ============================================================================
+
   /**
-   * Parses AI responses and extracts structured analysis data
+   * * Parses and structures AI responses with scoring analysis
    *
-   * This method takes raw AI responses and converts them into structured data
-   * with proper scoring, sentiment analysis, and stage-specific classifications.
-   * It handles JSON parsing, error recovery, and applies stage-specific scoring logic.
+   * This method takes a raw LLM response and extracts structured data including:
+   * - Numerical scores (0-100)
+   * - Sentiment analysis
+   * - Competitor mentions
+   * - Domain citations
+   * - Actionable recommendations
    *
-   * @param prompt - The original prompt that generated the response
-   * @param data - Raw AI response data to parse
-   * @param brandData - Brand context information
-   * @param stage - Marketing funnel stage for scoring context
-   * @param weights - Stage-specific weight configuration
-   * @returns Parsed response with scores, sentiment, and analysis
+   * @workflow
+   * 1. Sends raw response + scoring rules to ChatGPT for structured analysis
+   * 2. Extracts and validates JSON from the scoring response
+   * 3. Returns parsed data with all required fields
+   *
+   * @param prompt - Original prompt sent to the AI
+   * @param data - Raw AI response to be scored
+   * @param brandData - Brand context for analysis
+   * @param stage - Marketing funnel stage for appropriate scoring rules
+   * @returns Structured analysis with scores, sentiment, and recommendations
+   * @throws Error if JSON parsing or validation fails
+   *
+   * @note This method uses ChatGPT as the "scoring engine" regardless of which
+   *       model generated the original response. This ensures consistent scoring.
    */
   private static async parseAIResponse(
     prompt: string,
     data: string,
     brandData: IBrand,
-    stage?: string,
-    weights?: StageSpecificWeights
+    stage?: string
   ): Promise<
     ParsedAIResponse & {
       competitorData?: {
@@ -340,255 +388,250 @@ export class AIService {
       };
     }
   > {
-    const aiResponse = await LLMService.callChatGPT(
-      this.getStageSpeficAnalysisPrompt(
-        prompt,
-        data,
-        stage as AnalysisStage,
-        brandData
-      ).prompt,
-      this.getStageSpeficAnalysisPrompt(
-        prompt,
-        data,
-        stage as AnalysisStage,
-        brandData
-      ).systemMessage
+    // * Get stage-specific scoring rules
+    const scoringSystemMessage = this.getScoringSystemMessage(
+      stage as AnalysisStage
     );
-    let response;
-    try {
-      response = JSON.parse(aiResponse.response);
-    } catch (error) {
-      console.error("JSON parsing error:", error);
-      console.error("Raw AI response:", aiResponse.response);
-      // Create error response with default values when JSON parsing fails
-      response = {
-        score: 0,
-        position_weighted_score: 0,
-        mentionPosition: null,
-        analysis: `JSON parsing failed. Raw response: ${aiResponse.response}`,
-        sentiment: {
-          overall: "neutral" as const,
-          confidence: 0,
-          distribution: {
-            positive: 0,
-            neutral: 0,
-            negative: 0,
-            strongly_positive: 0,
+
+    // * Build the scoring prompt with context
+    const scoringPrompt = `
+        Brand: "${brandData.name}"
+        Funnel Stage: "${stage}"
+        Question:
+        "${prompt}"
+
+        LLM Response:
+        """
+        ${data}
+        """
+
+        CRITICAL: You MUST return ONLY valid JSON. No markdown, no code fences, no explanations.
+
+        Return a JSON object with these EXACT keys:
+        {
+          "score": <number between 0-100>,
+          "confidence": <number between 0-100>,
+          "rationale": "<string explaining the score with actionable recommendations>",
+          "sentiment": {
+            "overall": "<positive|neutral|negative>",
+            "confidence": <number between 0-100>,
+            "distribution": {
+              "positive": <number>,
+              "neutral": <number>,
+              "negative": <number>,
+              "strongly_positive": <number>
+            }
           },
+          "competitors_mentioned": [
+            {
+              "name": "<string>",
+              "normalized_name": "<string>",
+              "confidence_score": <number>,
+              "source_domains": ["<string>"]
+            }
+          ],
+          "domain_citations": [
+            {
+              "domain": "<string>",
+              "authority_score": <number>,
+              "source_type": "news|review|industry|academic|social|other",
+              "relevance": "high|medium|low",
+              "reasoning": "<string>"
+            }
+          ]
+        }
+
+        The "rationale" field MUST:
+        1. Explain WHY the score is what it is using only evidence from the response
+        2. State what is MISSING if score is below 60
+        3. State what was DONE WELL if score is 60 or above
+        4. Provide concrete, actionable recommendations for marketers
+
+        Do NOT include any text before or after the JSON object.
+        `.trim();
+
+    try {
+      // * Call ChatGPT to score and structure the response
+      const scoringResult = await LLMService.callChatGPT(
+        scoringPrompt,
+        scoringSystemMessage
+      );
+
+      // * Extract JSON using robust parsing strategies
+      const scoringJson = this.extractAndParseJSON(scoringResult.response);
+
+      // * Validate the parsed response has all required fields
+      this.validateParsedResponse(scoringJson);
+
+      // * Build the structured response object
+      const baseResponse = {
+        score: scoringJson.score,
+        position_weighted_score: scoringJson.score,
+        mentionPosition: null,
+        analysis: scoringJson.rationale,
+        sentiment: scoringJson.sentiment,
+        status: "success" as const,
+        competitorData: {
+          competitors: scoringJson.competitors_mentioned || [],
+          domains: scoringJson.domain_citations || [],
         },
-        status: "error" as const,
-      };
-    }
-
-    if (response.status === "error") {
-      return response;
-    }
-
-    // Extract stage-specific values and convert to mention positions
-    let value = "";
-    let mentionedPosition = null;
-
-    // Map AI response values to numerical positions based on stage type
-    switch (stage) {
-      case "TOFU":
-        value = response.rank;
-        mentionedPosition =
-          response.rank === "first"
-            ? 1
-            : response.rank === "second"
-            ? 2
-            : response.rank === "third"
-            ? 3
-            : response.rank === "fourth"
-            ? 4
-            : response.rank === "fifth"
-            ? 5
-            : 0;
-        break;
-      case "MOFU":
-        value = response.tone;
-        mentionedPosition =
-          response.tone === "positive"
-            ? 1
-            : response.tone === "conditional"
-            ? 2
-            : response.tone === "neutral"
-            ? 3
-            : response.tone === "negative"
-            ? 4
-            : 0;
-        break;
-      case "BOFU":
-        value = response.intent;
-        mentionedPosition =
-          response.intent === "yes"
-            ? 1
-            : response.intent === "partial"
-            ? 2
-            : response.intent === "unclear"
-            ? 3
-            : response.intent === "no"
-            ? 4
-            : 0;
-        break;
-      case "EVFU":
-        value = response.sentiment;
-        mentionedPosition =
-          response.sentiment === "recommend"
-            ? 1
-            : response.sentiment === "caveat"
-            ? 2
-            : response.sentiment === "neutral"
-            ? 3
-            : response.sentiment === "negative"
-            ? 4
-            : 0;
-        break;
-      default:
-        throw new Error(`Unknown stage: ${stage}`);
-    }
-
-    const { rawScore, weightedScore } = this.computeStageSpecificScore(
-      stage as AnalysisStage,
-      value,
-      weights || { base_weight: 1 },
-      weights?.base_weight || 1
-    );
-
-    const baseResponse = {
-      score: rawScore,
-      position_weighted_score: weightedScore,
-      mentionPosition: mentionedPosition,
-      analysis: response.comment,
-      sentiment: response.sentiment_distribution,
-      status: "success" as const,
-    };
-
-    // Extract competitor data for TOFU stage only
-    if (
-      stage === "TOFU" &&
-      response.competitors_mentioned &&
-      response.domain_citations
-    ) {
-      const competitorData: {
-        competitors: CompetitorData[];
-        domains: DomainCitation[];
-      } = {
-        competitors: response.competitors_mentioned.map((comp: any) => ({
-          name: comp.name,
-          normalized_name: comp.normalized_name,
-          confidence_score: comp.confidence_score,
-          industry_category: brandData.category || "business",
-          source_domains: comp.source_domains.map((domain: string) => ({
-            domain,
-          })),
-        })),
-        domains: response.domain_citations.map((domain: any) => ({
-          domain: domain.domain,
-          authority_score: domain.authority_score,
-          source_type: domain.source_type,
-          relevance: domain.relevance,
-          reasoning: domain.reasoning,
-          confidence: 90,
-        })),
       };
 
-      return {
-        ...baseResponse,
-        competitorData,
-      };
-    }
+      return baseResponse;
+    } catch (error) {
+      // ! Parsing failed - log and throw error for proper handling upstream
+      console.error("parseAIResponse error:", error);
 
-    return baseResponse;
+      throw new Error(
+        `Failed to parse AI response: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`
+      );
+    }
   }
 
+  // ============================================================================
+  // * STAGE-SPECIFIC SYSTEM MESSAGES - Controls LLM Response Format
+  // ============================================================================
+
   /**
-   * Gets stage-specific system message for AI models
+   * * Generates stage-specific instructions for initial LLM queries
    *
-   * Each marketing funnel stage requires different response formats:
-   * - TOFU: Ranked list format (discovery questions)
-   * - MOFU: Comparison/sentiment analysis format (evaluation questions)
-   * - BOFU: Direct recommendation format (purchase intent questions)
-   * - EVFU: Sentiment/reputation analysis format (post-purchase questions)
+   * These messages control HOW the AI responds (format, style, constraints),
+   * not how we SCORE the response (that's in getScoringSystemMessage).
    *
-   * @param stage - Marketing funnel stage to get system message for
-   * @returns Stage-specific system message with appropriate instructions
+   * @key_principle
+   * All stages emphasize factual, evidence-based responses without speculation.
+   * LLMs should clearly state when information is unavailable rather than fabricate.
+   *
+   * @param stage - Marketing funnel stage
+   * @returns System message that controls AI response behavior
    */
   private static getStageSpecificSystemMessage(stage?: string): string {
-    const baseInstructions = `You are a helpful assistant tasked with answering business discovery questions using general market knowledge and inference.
-If you are unfamiliar with any specific brands, provide comparable examples or general best practices.
-Avoid discussing your training data or knowledge cutoff unless specifically asked.
-Avoid using hedge words like 'likely', 'probably', 'seems', 'appears' - be direct and confident in your assessments.`;
+    const baseInstructions = `You are a business research assistant answering market questions.
+        IMPORTANT:
+        - Base your response ONLY on information that can be reasonably inferred or is commonly known.
+        - If you do not have specific information about a brand, explicitly state that the information is not available.
+        - Clearly distinguish between factual statements and general industry observations.
+        - Do NOT invent customer sentiment, performance claims, or recommendations.
+        - It is acceptable and preferred to state when evidence is limited or unavailable.
+        - Do NOT write marketing copy or persuasive language.
+        Avoid using hedge words like 'likely', 'probably', 'seems', 'appears' - be direct and confident in your assessments.`;
 
     switch (stage) {
       case "TOFU":
+        // ! TOFU: Ranked list format for discovery questions
         return `${baseInstructions}
-When answering, respond in the form of a ranked list of exactly 5 options.
-Rank them in order of relevance, prominence, or likelihood.
-Do not explain the ranking unless explicitly instructed.
-Focus on identifying companies, brands, or providers that match the question criteria.`;
+            When answering, respond in the form of a ranked list of exactly 5 options.
+            Rank them in order of relevance or visibility in the market.
+
+            Rules:
+            - List companies or providers only if they are plausibly active in the described market.
+            - Do NOT imply market leadership or dominance unless it is widely recognized.
+            - Do NOT add descriptive praise or evaluation.
+            - If information is uncertain, include the company lower in the list.
+
+            Do not explain the ranking unless explicitly instructed.`;
 
       case "MOFU":
+        // ! MOFU: Analytical narrative, evidence-focused
         return `${baseInstructions}
-When answering comparison or perception questions, provide a detailed analysis of how brands are positioned, compared, or perceived.
-Focus on sentiment, tone, strengths, weaknesses, and competitive positioning.
-Do not format your response as a ranked list unless the question specifically asks for one.
-Instead, provide a narrative analysis that evaluates the brand's positioning and sentiment.`;
+            When answering comparison or perception questions:
+            
+            Rules:
+            - Describe how brands are evaluated ONLY if explicitly stated or clearly supported.
+            - Do NOT assume strengths, weaknesses, or differentiation without evidence.
+            - If evaluation is based on general industry patterns rather than brand-specific proof, state this clearly.
+            - Avoid speculative or hypothetical language presented as fact.
+            - Provide a cautious, factual analysis rather than a persuasive narrative.
+            
+            Do NOT format the response as a ranked list unless explicitly requested.`;
 
       case "BOFU":
+        // ! BOFU: Direct recommendation or honest "insufficient data"
         return `${baseInstructions}
-When answering recommendation or purchase intent questions, provide a direct, clear answer about whether you would recommend the brand or if it's a good choice.
-Focus on purchase readiness, trustworthiness, and conversion potential.
-Do not format your response as a ranked list unless the question specifically asks for one.
-Instead, provide a clear recommendation with supporting reasoning.`;
+            When answering recommendation or purchase-intent questions:
+            
+            Rules:
+            - Recommend the brand ONLY if there is a clear and explicit basis to do so.
+            - If there is insufficient information to confidently recommend the brand, state that clearly.
+            - Do NOT provide conditional or hypothetical recommendations framed as decisions.
+            - It is acceptable to conclude that a recommendation cannot be made due to lack of evidence.
+            
+            Do NOT format the response as a ranked list unless explicitly requested.`;
 
       case "EVFU":
+        // ! EVFU: Reputation analysis, customer evidence required
         return `${baseInstructions}
-When answering reputation or post-purchase questions, provide a detailed sentiment analysis of customer experiences, satisfaction, and advocacy.
-Focus on trustworthiness, customer satisfaction, loyalty, and recommendation signals.
-Do not format your response as a ranked list unless the question specifically asks for one.
-Instead, provide a narrative analysis of the brand's reputation and customer sentiment.`;
+            When answering reputation or post-purchase questions:
+            
+            Rules:
+            - Refer to customer sentiment or advocacy ONLY if explicitly supported by evidence.
+            - Do NOT generalize customer satisfaction without referencing reviews, testimonials, or reputation signals.
+            - If customer feedback or reputation information is not clearly available, state that explicitly.
+            - Avoid hypothetical descriptions of loyalty, trust, or advocacy.
+            
+            Do NOT format the response as a ranked list unless explicitly requested.`;
 
       default:
-        // Default to TOFU format for backward compatibility
         return `${baseInstructions}
-When possible, respond in the form of a ranked list of exactly 5 options.
-Rank them in order of relevance, prominence, or likelihood.
-Do not explain the ranking unless explicitly instructed.`;
+            When possible, respond cautiously and avoid speculation.
+            State clearly when information is unavailable or uncertain.`;
     }
   }
 
+  // ============================================================================
+  // * PUBLIC API METHODS
+  // ============================================================================
+
   /**
-   * Analyzes a brand using a single AI model and prompt
+   * * Analyzes a brand using a single AI model and prompt
    *
-   * This is the core analysis method that:
-   * 1. Calls the specified AI model with the given prompt
-   * 2. Parses the response using stage-specific logic
-   * 3. Calculates weighted scores based on mention position
-   * 4. Extracts sentiment analysis data
-   * 5. Returns structured analysis results
+   * This is the core single-analysis method that:
+   * 1. Routes to the appropriate AI model (ChatGPT, Claude, or Gemini)
+   * 2. Gets raw response from the model
+   * 3. Parses and scores the response
+   * 4. Returns structured analysis OR detailed error
    *
-   * @param model - AI model to use (ChatGPT, Claude, or Gemini)
-   * @param prompt - Analysis prompt to send to the AI
-   * @param brandData - Brand information for context
-   * @param stage - Marketing funnel stage for scoring
-   * @param weights - Stage-specific weight configuration
-   * @returns Complete analysis result with scores and sentiment
+   * @important Error Handling
+   * This method ALWAYS returns exactly ONE result object - never multiple entries.
+   * If parsing fails, it returns an error result with score: 0 and status: "error".
+   *
+   * @param model - Which AI model to use (ChatGPT | Claude | Gemini)
+   * @param prompt - The analysis question to ask the AI
+   * @param brandData - Brand context (name, industry, etc.)
+   * @param stage - Marketing funnel stage for appropriate scoring
+   * @returns Single analysis result (success OR error, never both)
+   *
+   * @example
+   * const result = await AIService.analyzeBrand(
+   *   "ChatGPT",
+   *   "What are the top CRM tools for startups?",
+   *   { name: "HubSpot", industry: "SaaS" },
+   *   "TOFU"
+   * );
+   *
+   * if (result.status === "success") {
+   *   console.log("Score:", result.score);
+   * } else {
+   *   console.error("Analysis failed:", result.response);
+   * }
    */
   public static async analyzeBrand(
     model: AIModel,
     prompt: string,
     brandData: IBrand,
-    stage?: string,
-    weights?: StageSpecificWeights
+    stage?: string
   ): Promise<AIAnalysisResult> {
-    try {
-      let aiResponse: { response: string; responseTime: number };
+    const startTime = Date.now();
 
-      // Get stage-specific system message for appropriate response format
+    try {
+      // * Get stage-specific system message to control AI behavior
       const systemMessage = this.getStageSpecificSystemMessage(stage);
 
-      // Route to the appropriate AI model based on the model parameter
+      // * Route to the appropriate AI model
+      let aiResponse: { response: string; responseTime: number };
+
       switch (model) {
         case "ChatGPT":
           aiResponse = await LLMService.callChatGPT(prompt, systemMessage);
@@ -603,15 +646,15 @@ Do not explain the ranking unless explicitly instructed.`;
           throw new Error(`Unsupported AI model: ${model}`);
       }
 
-      // Parse the structured response with AI-generated weighted scores
+      // * Parse and score the response (this can throw if parsing fails)
       const parsedData = await this.parseAIResponse(
         prompt,
         aiResponse.response,
         brandData,
-        stage,
-        weights
+        stage
       );
 
+      // ? SUCCESS: Return complete analysis result
       return {
         score: parsedData.score,
         position_weighted_score: parsedData.position_weighted_score,
@@ -624,15 +667,19 @@ Do not explain the ranking unless explicitly instructed.`;
         competitorData: parsedData.competitorData,
       };
     } catch (error) {
+      const endTime = Date.now();
+      const responseTime = endTime - startTime;
+
+      // ! ERROR: Log and return error result (NO undefined values)
       console.error(`AI Analysis Error for ${model}:`, error);
-      // Return error response with default values when analysis fails
+
       return {
         score: 0,
         position_weighted_score: 0,
         response: `Analysis failed: ${
           error instanceof Error ? error.message : "Unknown error"
         }`,
-        responseTime: 0,
+        responseTime: responseTime,
         sentiment: {
           overall: "negative" as const,
           confidence: 0,
@@ -644,29 +691,54 @@ Do not explain the ranking unless explicitly instructed.`;
           },
         },
         mentionPosition: 0,
-        analysis: "Analysis failed due to API error",
+        analysis: `Analysis failed due to error: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`,
         status: "error" as const,
       };
     }
   }
 
   /**
-   * Performs comprehensive multi-prompt analysis for a single model and stage
+   * * Performs comprehensive multi-prompt analysis for a brand
    *
-   * This method orchestrates the complete analysis workflow:
+   * This is the main analysis orchestrator that:
    * 1. Retrieves all prompts for the specified stage
-   * 2. Processes each prompt with the AI model
+   * 2. Runs each prompt through the AI model
    * 3. Aggregates results across all prompts
    * 4. Calculates overall scores and sentiment
-   * 5. Computes success rates and performance metrics
+   * 5. Provides success rate and performance metrics
    *
-   * This is the primary method used for comprehensive brand analysis,
-   * providing detailed insights across multiple evaluation criteria.
+   * @key_features
+   * - Processes multiple prompts sequentially (respects rate limits)
+   * - Handles partial failures gracefully (some prompts succeed, others fail)
+   * - Aggregates only successful results for accurate scoring
+   * - Throws error only if ALL prompts fail
+   * - Logs warnings for partial failures
    *
-   * @param brandData - Complete brand information for analysis
-   * @param model - AI model to use for analysis
+   * @param brandData - Complete brand information
+   * @param model - AI model to use for all prompts
    * @param stage - Marketing funnel stage to analyze
    * @returns Aggregated analysis results with detailed metrics
+   * @throws Error only if ALL prompts fail (not for partial failures)
+   *
+   * @example
+   * try {
+   *   const results = await AIService.analyzeWithMultiplePrompts(
+   *     { name: "Slack", industry: "SaaS" },
+   *     "ChatGPT",
+   *     "MOFU"
+   *   );
+   *
+   *   console.log("Overall Score:", results.overallScore);
+   *   console.log("Success Rate:", results.successRate + "%");
+   *
+   *   if (results.successRate < 100) {
+   *     console.warn("Some prompts failed - check individual results");
+   *   }
+   * } catch (error) {
+   *   console.error("Complete failure - all prompts failed:", error);
+   * }
    */
   public static async analyzeWithMultiplePrompts(
     brandData: IBrand,
@@ -674,21 +746,20 @@ Do not explain the ranking unless explicitly instructed.`;
     stage: AnalysisStage
   ): Promise<AIAnalysisResults> {
     try {
-      // Retrieve all prompts configured for this marketing funnel stage
+      // * Retrieve all prompts configured for this stage
       const stagePrompts = await PromptService.getPromptsByStage(stage);
 
       if (stagePrompts.length === 0) {
         throw new Error(`No prompts found for stage: ${stage}`);
       }
 
-      // Initialize tracking variables for aggregation
+      // * Initialize aggregation variables
       const promptResults = [];
       let totalResponseTime = 0;
       let successfulPrompts = 0;
       let totalWeightedScore = 0;
       let totalWeightSum = 0;
 
-      // Initialize sentiment aggregation tracking
       const sentimentScores = {
         positive: 0,
         neutral: 0,
@@ -696,108 +767,106 @@ Do not explain the ranking unless explicitly instructed.`;
         strongly_positive: 0,
       };
 
-      // Process each prompt individually and aggregate results
+      // * Process each prompt sequentially
       for (const prompt of stagePrompts) {
-        try {
-          // Replace brand-specific placeholders in the prompt template
-          const processedPromptText = PromptService.replacePromptPlaceholders(
-            prompt.prompt_text,
-            brandData
-          );
+        // ? Replace brand-specific placeholders in the prompt template
+        const processedPromptText = PromptService.replacePromptPlaceholders(
+          prompt.prompt_text,
+          brandData
+        );
 
-          // Perform AI analysis with the processed prompt
-          const analysisResult = await this.analyzeBrand(
-            model,
-            processedPromptText,
-            brandData,
-            stage,
-            prompt.weights
-          );
+        // ? Analyze with the current model (returns ONE result - success OR error)
+        const analysisResult = await this.analyzeBrand(
+          model,
+          processedPromptText,
+          brandData,
+          stage
+        );
 
-          promptResults.push({
-            promptId: prompt.prompt_id,
-            promptText: processedPromptText,
-            score: analysisResult.score * 100,
-            weightedScore: analysisResult.position_weighted_score * 100,
-            mentionPosition: analysisResult.mentionPosition,
-            response: `Response: \n\n ${analysisResult.response} \n\n Recommendation: ${analysisResult.analysis}`,
-            responseTime: analysisResult.responseTime,
-            sentiment: analysisResult.sentiment,
-            status: analysisResult.status,
-            competitorData: analysisResult.competitorData,
-          });
+        // * Store the result (single push - no duplicates!)
+        promptResults.push({
+          promptId: prompt.prompt_id,
+          promptText: processedPromptText,
+          score: analysisResult.score,
+          weightedScore: analysisResult.position_weighted_score,
+          mentionPosition: analysisResult.mentionPosition,
+          response:
+            analysisResult.status === "success"
+              ? `Response: \n\n ${analysisResult.response} \n\n Recommendation: ${analysisResult.analysis}`
+              : analysisResult.response,
+          responseTime: analysisResult.responseTime,
+          sentiment: analysisResult.sentiment,
+          status: analysisResult.status,
+          competitorData: analysisResult.competitorData,
+        });
 
-          // Aggregate successful analysis results
-          if (analysisResult.status === "success") {
-            successfulPrompts++;
-            totalWeightedScore += analysisResult.position_weighted_score * 100;
-            totalWeightSum += 1;
+        // * Aggregate metrics ONLY for successful analyses
+        if (analysisResult.status === "success") {
+          successfulPrompts++;
+          totalWeightedScore += analysisResult.position_weighted_score;
+          totalWeightSum += 1;
 
-            // Accumulate sentiment distribution data for overall sentiment calculation
-            Object.keys(sentimentScores).forEach((key) => {
-              sentimentScores[key as keyof typeof sentimentScores] +=
-                analysisResult.sentiment.distribution[
-                  key as keyof typeof analysisResult.sentiment.distribution
-                ];
-            });
-          }
-
-          totalResponseTime += analysisResult.responseTime;
-
-          // Add delay between API calls to respect rate limits and avoid overwhelming the AI services
-          await new Promise((resolve) => setTimeout(resolve, 500));
-        } catch (error) {
-          console.error(`Error analyzing prompt ${prompt.prompt_id}:`, error);
-
-          // Create error result entry for failed prompt analysis
-          promptResults.push({
-            promptId: prompt.prompt_id,
-            promptText: PromptService.replacePromptPlaceholders(
-              prompt.prompt_text,
-              brandData
-            ),
-            score: 0,
-            weightedScore: 0,
-            mentionPosition: 0,
-            response: `Analysis failed: ${
-              error instanceof Error ? error.message : "Unknown error"
-            }`,
-            responseTime: 0,
-            sentiment: {
-              overall: "negative" as const,
-              confidence: 0,
-              distribution: {
-                positive: 0,
-                neutral: 0,
-                negative: 0,
-                strongly_positive: 0,
-              },
-            },
-            status: "error" as const,
-            stage_specific_classification: "not_mentioned",
+          // ? Accumulate sentiment distribution data
+          Object.keys(sentimentScores).forEach((key) => {
+            sentimentScores[key as keyof typeof sentimentScores] +=
+              analysisResult.sentiment.distribution[
+                key as keyof typeof analysisResult.sentiment.distribution
+              ];
           });
         }
+
+        totalResponseTime += analysisResult.responseTime;
+
+        // * Rate limiting: delay between API calls
+        await new Promise((resolve) => setTimeout(resolve, 500));
       }
 
-      // Calculate comprehensive performance metrics
+      // =========================================================================
+      // * CALCULATE FINAL METRICS
+      // =========================================================================
 
-      // Overall score: average of all successful prompt scores
+      // ? Overall score: average of all successful prompt scores
+      // Returns null if no prompts succeeded (prevents misleading 0)
       const overallScore =
         successfulPrompts > 0
           ? promptResults
               .filter((r) => r.status === "success")
               .reduce((sum, result) => sum + result.score, 0) /
             successfulPrompts
-          : 0;
+          : null;
 
-      // Weighted score: incorporates position-based weighting for more accurate assessment
+      // ? Weighted score: incorporates position-based weighting
       const weightedScore =
-        totalWeightSum > 0 ? totalWeightedScore / totalWeightSum : 0;
+        totalWeightSum > 0 ? totalWeightedScore / totalWeightSum : null;
 
-      // Success rate: percentage of prompts that completed successfully
+      // ? Success rate: percentage of prompts that completed successfully
       const successRate = (successfulPrompts / stagePrompts.length) * 100;
 
-      // Calculate aggregated sentiment analysis across all successful prompts
+      // =========================================================================
+      // ! ERROR HANDLING: Check for complete or partial failures
+      // =========================================================================
+
+      // ! If ALL prompts failed, throw an error (don't return misleading data)
+      if (successfulPrompts === 0) {
+        throw new Error(
+          `All ${stagePrompts.length} prompts failed for ${model}-${stage}. ` +
+            `Check promptResults for individual error details.`
+        );
+      }
+
+      // ! If SOME prompts failed, log a warning (but continue with results)
+      if (successfulPrompts < stagePrompts.length) {
+        console.warn(
+          `Partial failure: ${stagePrompts.length - successfulPrompts} of ${
+            stagePrompts.length
+          } prompts failed for ${model}-${stage}`
+        );
+      }
+
+      // =========================================================================
+      // * AGGREGATE SENTIMENT ANALYSIS
+      // =========================================================================
+
       const totalSentimentResponses = successfulPrompts;
       const aggregatedSentiment: SentimentAnalysis = {
         overall: "neutral",
@@ -810,14 +879,14 @@ Do not explain the ranking unless explicitly instructed.`;
         },
       };
 
-      // Process sentiment data only if we have successful responses
       if (totalSentimentResponses > 0) {
-        // Calculate normalized percentages for sentiment distribution
+        // ? Calculate total sentiment points across all successful prompts
         const total = Object.values(sentimentScores).reduce(
           (sum, val) => sum + val,
           0
         );
 
+        // ? Convert to percentages
         if (total > 0) {
           aggregatedSentiment.distribution = {
             positive: Math.round((sentimentScores.positive / total) * 100),
@@ -829,14 +898,14 @@ Do not explain the ranking unless explicitly instructed.`;
           };
         }
 
-        // Determine overall sentiment based on positive vs negative balance
+        // ? Determine overall sentiment (positive, neutral, or negative)
         if (sentimentScores.positive > sentimentScores.negative) {
           aggregatedSentiment.overall = "positive";
         } else if (sentimentScores.negative > sentimentScores.positive) {
           aggregatedSentiment.overall = "negative";
         }
 
-        // Calculate confidence level based on the dominant sentiment
+        // ? Calculate confidence in the sentiment assessment
         aggregatedSentiment.confidence = Math.round(
           (Math.max(...Object.values(sentimentScores)) /
             totalSentimentResponses) *
@@ -844,15 +913,17 @@ Do not explain the ranking unless explicitly instructed.`;
         );
       }
 
+      // * Return comprehensive analysis results
       return {
-        overallScore,
-        weightedScore,
+        overallScore: overallScore || 0, // Convert null to 0 for backwards compatibility
+        weightedScore: weightedScore || 0,
         promptResults,
         aggregatedSentiment,
         totalResponseTime,
         successRate,
       };
     } catch (error) {
+      // ! Fatal error: log and re-throw for upstream handling
       console.error(
         `Multi-prompt analysis error for ${model}-${stage}:`,
         error
