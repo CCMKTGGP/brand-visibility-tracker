@@ -1,11 +1,7 @@
 import fs from "fs/promises";
 import path from "path";
 import { AnalysisStage, IBrand } from "@/types/brand";
-import {
-  StageSpecificWeights,
-  ProcessedPrompt,
-  BrandPlaceholders,
-} from "@/types/services";
+import { ProcessedPrompt, BrandPlaceholders } from "@/types/services";
 
 /**
  * Prompt Management Service
@@ -30,79 +26,6 @@ export class PromptService {
    * Flag to track whether prompts have been loaded from the CSV file
    */
   private static isInitialized = false;
-
-  /**
-   * Builds stage-specific weight configurations from CSV row data
-   *
-   * Each marketing funnel stage has different scoring criteria and weights:
-   * - TOFU: Position-based weights (first, second, third, etc.)
-   * - MOFU: Tone-based weights (positive, conditional, neutral, etc.)
-   * - BOFU: Intent-based weights (yes, partial, unclear, etc.)
-   * - EVFU: Sentiment-based weights (recommend, caveat, neutral, etc.)
-   *
-   * @param row - CSV row data containing weight values
-   * @param stage - Marketing funnel stage
-   * @param base_weight - Base weight multiplier
-   * @returns Structured weight configuration for the stage
-   */
-  private static buildStageSpecificWeights(
-    row: Record<string, string>,
-    stage: AnalysisStage,
-    base_weight: number
-  ): StageSpecificWeights {
-    // Helper function to safely parse numeric values from CSV
-    const parse = (val: string) => (val ? parseFloat(val) : 0);
-
-    switch (stage) {
-      case "TOFU":
-        return {
-          base_weight,
-          position_weights: {
-            first: parse(row["weight_first"]),
-            second: parse(row["weight_second"]),
-            third: parse(row["weight_third"]),
-            fourth: parse(row["weight_fourth"]),
-            fifth: parse(row["weight_fifth"]),
-            absent: parse(row["weight_absent"]),
-          },
-        };
-      case "MOFU":
-        return {
-          base_weight,
-          mofu_scale: {
-            positive: parse(row["mofu_positive"]),
-            conditional: parse(row["mofu_conditional"]),
-            neutral: parse(row["mofu_neutral"]),
-            negative: parse(row["mofu_negative"]),
-            absent: parse(row["mofu_absent"]),
-          },
-        };
-      case "BOFU":
-        return {
-          base_weight,
-          bofu_scale: {
-            yes: parse(row["bofu_yes"]),
-            partial: parse(row["bofu_partial"]),
-            unclear: parse(row["bofu_unclear"]),
-            no: parse(row["bofu_no"]),
-            absent: parse(row["bofu_absent"]),
-          },
-        };
-      case "EVFU":
-        return {
-          base_weight,
-          evfu_scale: {
-            recommend: parse(row["evfu_recommend"]),
-            caveat: parse(row["evfu_caveat"]),
-            neutral: parse(row["evfu_neutral"]),
-            negative: parse(row["evfu_negative"]),
-            absent: parse(row["evfu_absent"]),
-          },
-        };
-      default:
-        return { base_weight };
-    }
-  }
 
   /**
    * Parses a CSV line while properly handling quoted text containing commas
@@ -178,15 +101,10 @@ export class PromptService {
 
         const stage = row["funnel_stage"] as AnalysisStage;
 
-        // Parse weight configuration for this prompt
-        const base_weight = parseFloat(row["base_weight"]) || 1;
-        const weights = this.buildStageSpecificWeights(row, stage, base_weight);
-
         prompts.push({
           prompt_id: row["prompt_id"],
           prompt_text: row["prompt_text"],
           funnel_stage: stage,
-          weights,
         });
       }
 
