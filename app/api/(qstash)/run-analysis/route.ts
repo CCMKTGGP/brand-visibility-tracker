@@ -125,7 +125,8 @@ export const { POST } = serve(
             stage,
             result,
             userId,
-            "manual"
+            "manual",
+            analysisId // Pass the analysis_id to group all analyses from this run
           );
 
           // Mark this model-stage pair as completed

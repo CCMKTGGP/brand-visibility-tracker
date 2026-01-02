@@ -17,6 +17,7 @@ import { AIService } from "@/lib/services/aiService";
 import { DataOrganizationService } from "@/lib/services/dataOrganizationService";
 import { analysisCompletionEmailTemplate } from "@/utils/analysisCompletionEmailTemplate";
 import { sendEmail } from "@/utils/sendEmail";
+import moment from "moment";
 
 const LogsQuerySchema = z.object({
   userId: z.string().min(1, "User ID is required"),
@@ -108,7 +109,8 @@ async function runFullAnalysis({
         stage,
         result,
         userId,
-        "manual"
+        "manual",
+        analysisId // Pass the analysis_id to group all analyses from this run
       );
 
       await AnalysisPair.findOneAndUpdate(
@@ -663,8 +665,8 @@ export const POST = async (
       );
     }
 
-    // Generate analysis ID for tracking
-    const analysisId = `multi-${brandId}-${Date.now()}`;
+    // Generate human-readable analysis ID for tracking
+    const analysisId = `ANL-${moment().format("DD MMM, YYYY | hh:mm a")}`;
 
     // Create all model-stage combinations (pairs)
     const pairs = [];

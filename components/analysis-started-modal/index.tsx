@@ -26,6 +26,7 @@ export default function AnalysisStartedModal({
   userEmail,
 }: AnalysisStartedModalProps) {
   const [brandName, setBrandName] = useState("");
+  const [useCase, setUseCase] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -34,6 +35,7 @@ export default function AnalysisStartedModal({
       const response = await fetchData(`/api/brand/${brandId}`);
       const { data } = response;
       setBrandName(data.name || `Brand ${brandId}`);
+      setUseCase(data.use_case || null);
     } catch (error) {
       setError(
         `Failed to fetch brand name - ${
@@ -59,7 +61,7 @@ export default function AnalysisStartedModal({
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <CheckCircle className="h-5 w-5 text-green-500" />
-              Analysis Started Successfully!
+              Analysis Started
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4 min-h-48 flex items-center justify-center">
@@ -115,6 +117,9 @@ export default function AnalysisStartedModal({
               <p className="text-sm text-green-700 mt-1">
                 We&apos;ve started analyzing the brand visibility for{" "}
                 <strong>{brandName}</strong>.
+              </p>
+              <p className="text-sm text-green-700 mt-1">
+                <strong>Use Case:</strong> {useCase}
               </p>
             </div>
           </div>

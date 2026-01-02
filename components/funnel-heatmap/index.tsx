@@ -54,6 +54,7 @@ interface FunnelHeatmapProps {
   data: HeatmapData;
   title?: string;
   showSummary?: boolean;
+  showAverages?: boolean; // Show averages only when true (when no specific analysis is selected)
   brandDetails?: BrandDetails;
 }
 
@@ -61,6 +62,7 @@ const FunnelHeatmap: React.FC<FunnelHeatmapProps> = ({
   data,
   title = "Stage vs Model Performance Matrix",
   showSummary = true,
+  showAverages = true,
   brandDetails,
 }) => {
   const [selectedCell, setSelectedCell] = useState<{
@@ -390,9 +392,11 @@ const FunnelHeatmap: React.FC<FunnelHeatmapProps> = ({
                   <Activity className="w-4 h-4" />
                   <span>{model}</span>
                 </div>
-                <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                  Avg: {data.summary.avg_score_by_model[model] || 0}%
-                </div>
+                {showAverages && (
+                  <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    Avg: {data.summary.avg_score_by_model[model] || 0}%
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -408,9 +412,11 @@ const FunnelHeatmap: React.FC<FunnelHeatmapProps> = ({
                 <div className="text-xs text-gray-600 dark:text-gray-400">
                   {getStageSubLabels(stage)}
                 </div>
-                <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                  Avg: {data.summary.avg_score_by_stage[stage] || 0}%
-                </div>
+                {showAverages && (
+                  <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    Avg: {data.summary.avg_score_by_stage[stage] || 0}%
+                  </div>
+                )}
               </div>
 
               {/* Model Cells */}
@@ -472,10 +478,6 @@ const FunnelHeatmap: React.FC<FunnelHeatmapProps> = ({
                           <div className="font-medium">
                             {model} - {stage}
                           </div>
-                          <div>Weighted Score: {cellData.weightedScore}%</div>
-                          <div>Raw Score: {cellData.score}%</div>
-                          <div>Confidence: {cellData.confidence}%</div>
-                          <div>Analyses: {cellData.analyses}</div>
                           <div>
                             Range:{" "}
                             {getScoreRangeDescription(cellData.weightedScore)}

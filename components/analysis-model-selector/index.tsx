@@ -3,8 +3,7 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Badge } from "@/components/ui/badge";
-import { Bot, Zap, CreditCard, AlertCircle, CheckCircle2 } from "lucide-react";
+import { Bot, Zap, CreditCard, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import { CreditBalance } from "@/components/credit-balance";
 import { postData } from "@/utils/fetch";
@@ -221,7 +220,7 @@ export function AnalysisModelSelector({
         </p>
         <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
           <p className="text-sm text-blue-800">
-            <strong>4 credits per model</strong> - Each selected model will
+            <strong>10 credits per model</strong> - Each selected model will
             analyze all funnel stages (TOFU, MOFU, BOFU, EVFU) automatically.
           </p>
         </div>
@@ -232,13 +231,13 @@ export function AnalysisModelSelector({
         <div className="mb-8">
           <div className="flex items-center gap-2">
             <CreditCard className="h-5 w-5" />
-            <h3 className="text-lg font-semibold">Analysis Estimate</h3>
+            <h3 className="text-lg font-semibold">Wallet Balance</h3>
           </div>
           {estimating ? (
             <Loading message="Estimating analysis..." />
           ) : estimate ? (
             <div className="space-y-3 mt-2">
-              <div className="grid grid-cols-3 content-center gap-3">
+              <div className="grid grid-cols-2 content-center gap-3">
                 <div className="text-center p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
                   <div className="text-xl font-bold text-primary">
                     {estimate.creditsRequired}
@@ -253,24 +252,6 @@ export function AnalysisModelSelector({
                   </div>
                   <div className="text-xs text-gray-600 dark:text-gray-400">
                     Available
-                  </div>
-                </div>
-                <div className="text-center p-3 bg-gray-50 dark:bg-gray-700 rounded-lg flex items-center justify-center">
-                  <div className="text-sm font-semibold">
-                    {estimate.canAfford ? (
-                      <Badge
-                        variant="default"
-                        className="bg-green-100 text-green-800 text-xs"
-                      >
-                        <CheckCircle2 className="h-3 w-3 mr-1" />
-                        Affordable
-                      </Badge>
-                    ) : (
-                      <Badge variant="destructive" className="text-xs">
-                        <AlertCircle className="h-3 w-3 mr-1" />
-                        Insufficient
-                      </Badge>
-                    )}
                   </div>
                 </div>
               </div>

@@ -23,7 +23,7 @@ import { useUserContext } from "@/context/userContext";
 import { fetchData } from "@/utils/fetch";
 import Loading from "@/components/loading";
 import FunnelHeatmap from "@/components/funnel-heatmap";
-import { models, periods, stages } from "@/constants/dashboard";
+import { models, stages } from "@/constants/dashboard";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -55,7 +55,12 @@ const DashboardPage = ({
 
   const [selectedModel, setSelectedModel] = useState("all");
   const [selectedStage, setSelectedStage] = useState("all");
-  const [dateRange, setDateRange] = useState("all");
+  const [selectedAnalysisId, setSelectedAnalysisId] = useState<string | null>(
+    null
+  );
+  const [analysisRuns, setAnalysisRuns] = useState<
+    Array<{ analysis_id: string; createdAt: string; count: number }>
+  >([]);
   const [dashboardData, setDashboardData] = useState<DashboardResponse | null>(
     null
   );
@@ -64,6 +69,24 @@ const DashboardPage = ({
   const [showAnalysisModal, setShowAnalysisModal] = useState(false);
   const [showAnalysisSelectorModal, setShowAnalysisSelectorModal] =
     useState(false);
+
+  // Fetch analysis runs list
+  useEffect(() => {
+    async function fetchAnalysisRuns() {
+      if (!userId || !brandId || !user._id) return;
+
+      try {
+        const url = `/api/brand/${brandId}/analysis-runs?userId=${user._id}`;
+        const response = await fetchData(url);
+        const { data } = response;
+        setAnalysisRuns(data.analysisRuns || []);
+      } catch (err) {
+        console.error("Failed to fetch analysis runs:", err);
+      }
+    }
+
+    fetchAnalysisRuns();
+  }, [userId, brandId, user._id]);
 
   // Fetch dashboard data
   useEffect(() => {
@@ -74,7 +97,12 @@ const DashboardPage = ({
         setLoading(true);
         setError("");
 
-        const url = `/api/brand/${brandId}/dashboard?userId=${user._id}&period=${dateRange}&model=${selectedModel}&stage=${selectedStage}`;
+        let url = `/api/brand/${brandId}/dashboard?userId=${user._id}&model=${selectedModel}&stage=${selectedStage}`;
+        if (selectedAnalysisId) {
+          url += `&selectedAnalysisId=${encodeURIComponent(
+            selectedAnalysisId
+          )}`;
+        }
         const response = await fetchData(url);
         const { data } = response;
         setDashboardData(data);
@@ -88,7 +116,14 @@ const DashboardPage = ({
     }
 
     fetchDashboardData();
-  }, [userId, brandId, user._id, dateRange, selectedModel, selectedStage]);
+  }, [
+    userId,
+    brandId,
+    user._id,
+    selectedAnalysisId,
+    selectedModel,
+    selectedStage,
+  ]);
 
   // Loading state
   if (loading) {
@@ -623,19 +658,22 @@ const DashboardPage = ({
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Period
+                Analysis Run
               </label>
               <Select
-                value={dateRange}
-                onValueChange={(value) => setDateRange(value)}
+                value={selectedAnalysisId || "all"}
+                onValueChange={(value) =>
+                  setSelectedAnalysisId(value === "all" ? null : value)
+                }
               >
-                <SelectTrigger className="w-48">
+                <SelectTrigger className="w-80">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {periods.map(({ label, value }) => (
-                    <SelectItem key={value} value={value}>
-                      {label}
+                  <SelectItem value="all">All Analyses (Averaged)</SelectItem>
+                  {analysisRuns.map((run) => (
+                    <SelectItem key={run.analysis_id} value={run.analysis_id}>
+                      {run.analysis_id}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -698,6 +736,7 @@ const DashboardPage = ({
             data={dashboardData.heatmapData}
             title="Stage vs Model Performance Matrix"
             showSummary={true}
+            showAverages={!selectedAnalysisId}
             brandDetails={{
               name: selectedBrand.name,
               category: selectedBrand.category,
@@ -737,7 +776,7 @@ const DashboardPage = ({
       >
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Configure Analysis</DialogTitle>
+            <DialogTitle>{selectedBrand.name} - Analysis</DialogTitle>
           </DialogHeader>
           <div className="mt-4">
             <AnalysisModelSelector

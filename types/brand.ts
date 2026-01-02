@@ -192,10 +192,9 @@ export interface DashboardResponse {
   };
   heatmapData?: HeatmapData; // Add heatmap data
   filters: {
-    period: string;
+    selectedAnalysisId: string | null;
     model: string;
     stage: string;
-    availablePeriods: string[];
     availableModels: string[];
     availableStages: string[];
   };

@@ -54,7 +54,8 @@ export class DataOrganizationService {
     stage: AnalysisStage,
     aiAnalysisResults: AIAnalysisResults,
     userId: string,
-    triggerType: TriggerType = "manual"
+    triggerType: TriggerType = "manual",
+    analysisId?: string // Optional analysis_id to group analyses from the same run
   ): Promise<OrganizedAnalysisData> {
     try {
       // Retrieve prompt configurations to access weight settings
@@ -110,7 +111,7 @@ export class DataOrganizationService {
 
       // Assemble the complete organized analysis data structure
       const organizedData: OrganizedAnalysisData = {
-        analysis_id: new Types.ObjectId().toString(),
+        analysis_id: analysisId || new Types.ObjectId().toString(), // Use provided analysis_id or generate one
         brand_id: brandId,
         model,
         stage,
@@ -234,6 +235,7 @@ export class DataOrganizationService {
 
       const multiPromptAnalysis = new MultiPromptAnalysis({
         brand_id: new Types.ObjectId(data.brand_id),
+        analysis_id: data.analysis_id, // Store the analysis_id to group analyses from the same run
         model: data.model,
         stage: data.stage,
         overall_score: sanitizedOverallScore,
