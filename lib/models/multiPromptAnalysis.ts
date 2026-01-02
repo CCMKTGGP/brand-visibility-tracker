@@ -4,6 +4,7 @@ import { Schema, Types, model, models } from "mongoose";
 interface IMultiPromptAnalysis {
   _id: Types.ObjectId;
   brand_id: Types.ObjectId;
+  analysis_id?: string; // Human-readable ID to group analyses from the same run
   model: "ChatGPT" | "Claude" | "Gemini";
   stage: "TOFU" | "MOFU" | "BOFU" | "EVFU";
   overall_score: number;
@@ -71,6 +72,10 @@ const MultiPromptAnalysisSchema = new Schema<IMultiPromptAnalysis>(
       type: Schema.Types.ObjectId,
       ref: "Brand",
       required: true,
+      index: true,
+    },
+    analysis_id: {
+      type: String,
       index: true,
     },
     model: {
@@ -333,6 +338,13 @@ MultiPromptAnalysisSchema.index({
   brand_id: 1,
   model: 1,
   stage: 1,
+  createdAt: -1,
+});
+
+// Index for grouping by analysis_id
+MultiPromptAnalysisSchema.index({
+  brand_id: 1,
+  analysis_id: 1,
   createdAt: -1,
 });
 

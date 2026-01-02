@@ -10,7 +10,7 @@ import { RouteParams, BrandParams } from "@/types/api";
 
 const DashboardQuerySchema = z.object({
   userId: z.string().min(1, "User ID is required"),
-  period: z.enum(["all", "7d", "30d", "90d"]).optional().default("all"),
+  selectedAnalysisId: z.string().optional(), // analysis_id to filter by specific analysis run
   model: z
     .enum(["all", "ChatGPT", "Claude", "Gemini"])
     .optional()
@@ -48,9 +48,11 @@ export const GET = async (
     }
 
     // Parse query parameters
+    // Convert null to undefined for optional parameters (searchParams.get returns null when not present)
     const queryParams = {
       userId: url.searchParams.get("userId"),
-      period: url.searchParams.get("period"),
+      selectedAnalysisId:
+        url.searchParams.get("selectedAnalysisId") || undefined,
       model: url.searchParams.get("model"),
       stage: url.searchParams.get("stage"),
     };
@@ -66,7 +68,7 @@ export const GET = async (
       );
     }
 
-    const { userId, period, model, stage } = parse.data;
+    const { userId, selectedAnalysisId, model, stage } = parse.data;
 
     // Establish database connection
     await connect();
@@ -94,34 +96,15 @@ export const GET = async (
       );
     }
 
-    // Calculate date range
-    const endDate = new Date();
-    const startDate = new Date();
-    switch (period) {
-      case "7d":
-        startDate.setDate(endDate.getDate() - 7);
-        break;
-      case "30d":
-        startDate.setDate(endDate.getDate() - 30);
-        break;
-      case "90d":
-        startDate.setDate(endDate.getDate() - 90);
-        break;
-      case "all":
-      default:
-        // For "all", don't set a start date filter - fetch all data
-        startDate.setTime(0); // Set to epoch to include all data
-        break;
-    }
-
     // Build analysis filter
     const analysisFilter: any = {
       brand_id: new Types.ObjectId(brandId),
     };
 
-    // Only add date filter if not fetching all data
-    if (period !== "all") {
-      analysisFilter.createdAt = { $gte: startDate, $lte: endDate };
+    // If a specific analysis ID is selected, filter by that analysis_id
+    // Otherwise, fetch all data (for averaging)
+    if (selectedAnalysisId) {
+      analysisFilter.analysis_id = selectedAnalysisId;
     }
 
     if (model !== "all") {
@@ -483,10 +466,9 @@ export const GET = async (
       weeklyData,
       heatmapData,
       filters: {
-        period,
+        selectedAnalysisId: selectedAnalysisId || null,
         model,
         stage,
-        availablePeriods: ["all", "7d", "30d", "90d"],
         availableModels: ["all", "ChatGPT", "Claude", "Gemini"],
         availableStages: ["all", "TOFU", "MOFU", "BOFU", "EVFU"],
       },
