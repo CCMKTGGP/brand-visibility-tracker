@@ -46,7 +46,6 @@ export default function ViewLogs({
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
   const [selectedModel, setSelectedModel] = useState("all");
   const [selectedStage, setSelectedStage] = useState("all");
-  const [selectedStatus, setSelectedStatus] = useState("all");
   const [dateRange, setDateRange] = useState("all");
   const [logsData, setLogsData] = useState<LogsResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -177,7 +176,7 @@ export default function ViewLogs({
         period: dateRange,
         model: selectedModel,
         stage: selectedStage,
-        status: selectedStatus,
+        status: "all",
         search: debouncedSearchTerm,
         sortBy: sortBy,
         sortOrder: "desc",
@@ -202,7 +201,6 @@ export default function ViewLogs({
     dateRange,
     selectedModel,
     selectedStage,
-    selectedStatus,
     debouncedSearchTerm,
     currentPage,
     limit,
@@ -329,22 +327,39 @@ export default function ViewLogs({
     switch (stage) {
       case "TOFU":
         return `Rank: ${position}`;
-        
+
       case "MOFU":
         // 1=Positive, 2=Conditional, 3=Neutral, 4=Negative
-        const mofuMap = { 1: "Tone: Positive", 2: "Tone: Conditional", 3: "Tone: Neutral", 4: "Tone: Negative" };
+        const mofuMap = {
+          1: "Tone: Positive",
+          2: "Tone: Conditional",
+          3: "Tone: Neutral",
+          4: "Tone: Negative",
+        };
         return mofuMap[position as keyof typeof mofuMap] || "Tone: Unknown";
-        
+
       case "BOFU":
         // 1=Yes, 2=Partial, 3=Unclear, 4=No
-        const bofuMap = { 1: "Intent: Yes", 2: "Intent: Partial", 3: "Intent: Unclear", 4: "Intent: No" };
+        const bofuMap = {
+          1: "Intent: Yes",
+          2: "Intent: Partial",
+          3: "Intent: Unclear",
+          4: "Intent: No",
+        };
         return bofuMap[position as keyof typeof bofuMap] || "Intent: Unknown";
-        
+
       case "EVFU":
         // 1=Recommend, 2=Caveat, 3=Neutral, 4=Negative
-        const evfuMap = { 1: "Sentiment: Recommend", 2: "Sentiment: Caveat", 3: "Sentiment: Neutral", 4: "Sentiment: Negative" };
-        return evfuMap[position as keyof typeof evfuMap] || "Sentiment: Unknown";
-        
+        const evfuMap = {
+          1: "Sentiment: Recommend",
+          2: "Sentiment: Caveat",
+          3: "Sentiment: Neutral",
+          4: "Sentiment: Negative",
+        };
+        return (
+          evfuMap[position as keyof typeof evfuMap] || "Sentiment: Unknown"
+        );
+
       default:
         return `Position: ${position}`;
     }
@@ -499,25 +514,6 @@ export default function ViewLogs({
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Status
-              </label>
-              <Select
-                value={selectedStatus}
-                onValueChange={(value) => setSelectedStatus(value)}
-              >
-                <SelectTrigger className="w-44">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Status</SelectItem>
-                  <SelectItem value="success">Success</SelectItem>
-                  <SelectItem value="warning">Warning</SelectItem>
-                  <SelectItem value="error">Error</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Period
               </label>
               <Select
@@ -664,16 +660,12 @@ export default function ViewLogs({
                                             <span className="text-xs font-mono bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded">
                                               {prompt.promptId}
                                             </span>
-                                            <span
-                                              className={`text-xs px-2 py-1 rounded ${getStatusColor(
-                                                prompt.status
-                                              )}`}
-                                            >
-                                              {prompt.status}
-                                            </span>
                                             {prompt.mentionPosition > 0 && (
                                               <span className="text-xs bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300 px-2 py-1 rounded">
-                                                {getMetricLabel(log.stage, prompt.mentionPosition)}
+                                                {getMetricLabel(
+                                                  log.stage,
+                                                  prompt.mentionPosition
+                                                )}
                                               </span>
                                             )}
                                           </div>

@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import {
   Form,
   FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -110,62 +111,6 @@ export default function OnboardingForm({
                 </FormItem>
               )}
             />
-
-            {/* <FormField
-              control={form.control}
-              name="category"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Category</FormLabel>
-                  <Select
-                    onValueChange={field.onChange}
-                    defaultValue={field.value}
-                  >
-                    <FormControl className="w-full">
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select category" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {CATEGORIES.map((cat) => (
-                        <SelectItem key={cat} value={cat}>
-                          {cat}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="region"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Region</FormLabel>
-                  <Select
-                    onValueChange={field.onChange}
-                    defaultValue={field.value}
-                  >
-                    <FormControl className="w-full">
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select region" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {REGIONS.map((reg) => (
-                        <SelectItem key={reg} value={reg}>
-                          {reg}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            /> */}
             <FormField
               control={form.control}
               name="category"
@@ -205,6 +150,15 @@ export default function OnboardingForm({
                     onChange={field.onChange}
                     placeholder="Press Enter to add"
                   />
+                  <FormDescription
+                    className={`text-xs text-gray-500 ${
+                      field.value && field.value.length > 0
+                        ? "mt-[-5px]"
+                        : "mt-[-10px]"
+                    }`}
+                  >
+                    Add multiple target audiences by hitting Enter/Return
+                  </FormDescription>
                 </FormItem>
               )}
             />
@@ -220,6 +174,15 @@ export default function OnboardingForm({
                     onChange={field.onChange}
                     placeholder="Press Enter to add"
                   />
+                  <FormDescription
+                    className={`text-xs text-gray-500 ${
+                      field.value && field.value.length > 0
+                        ? "mt-[-5px]"
+                        : "mt-[-10px]"
+                    }`}
+                  >
+                    Add multiple competitors by hitting Enter/Return
+                  </FormDescription>
                 </FormItem>
               )}
             />
@@ -232,7 +195,7 @@ export default function OnboardingForm({
                   <FormLabel>Use Case</FormLabel>
                   <FormControl>
                     <Textarea
-                      placeholder="Describe your brand's use case"
+                      placeholder="Add a use case, product, or service your brand offers"
                       {...field}
                     />
                   </FormControl>
@@ -245,12 +208,21 @@ export default function OnboardingForm({
               name="features"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Key Features</FormLabel>
+                  <FormLabel>Key Features or Benefits</FormLabel>
                   <TagInput
                     value={field.value || []}
                     onChange={field.onChange}
                     placeholder="Press Enter to add"
                   />
+                  <FormDescription
+                    className={`text-xs text-gray-500 ${
+                      field.value && field.value.length > 0
+                        ? "mt-[-5px]"
+                        : "mt-[-10px]"
+                    }`}
+                  >
+                    Add multiple key features by hitting Enter/Return
+                  </FormDescription>
                 </FormItem>
               )}
             />

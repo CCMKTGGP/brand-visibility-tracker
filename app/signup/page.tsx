@@ -31,7 +31,8 @@ const SignupPage: React.FC = () => {
             Create your account
           </h2>
           <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-            Start tracking your brand visibility today
+            Track how AI models describe your brand across every stage of the
+            buyer journey
           </p>
         </div>
 

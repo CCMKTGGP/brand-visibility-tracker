@@ -92,7 +92,7 @@ export const POST = async (request: Request) => {
     const verificationLink = `${process.env.NEXT_PUBLIC_BASE_URL}/api/verify-email?verifyToken=${verificationToken}&id=${newUser?._id}`;
     const message = verificationEmailTemplate(verificationLink);
     // Send verification email
-    await sendEmail(newUser?.email, "Email Verification", message);
+    await sendEmail(newUser?.email, "GEOstatus.cc Email Verification", message);
 
     // create a jwt token and send it as a resppnse
     const token = jwt.sign({ newUser }, process.env.TOKEN_SECRET || "sign");

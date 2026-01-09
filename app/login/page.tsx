@@ -48,7 +48,8 @@ const LoginPage: React.FC = () => {
             Sign in to your account
           </h2>
           <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-            Track your brand visibility across AI models
+            Track how AI models describe your brand across every stage of the
+            buyer journey
           </p>
         </div>
 

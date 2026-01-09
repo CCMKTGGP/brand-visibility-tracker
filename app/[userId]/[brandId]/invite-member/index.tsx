@@ -32,7 +32,7 @@ export default function InviteMemberPage({
             <Logo />
           </div>
           <h1 className="text-3xl font-extrabold text-gray-900 dark:text-white">
-            Welcome to Brand Visibility Tracker
+            Welcome to GEOStatus.cc - Full-Funnel AI Visibility
           </h1>
           <p className="mt-2 text-lg text-gray-600 dark:text-gray-400">
             Let&apos;s get you set up in just a few steps

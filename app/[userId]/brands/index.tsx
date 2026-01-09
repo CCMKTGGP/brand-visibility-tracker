@@ -9,13 +9,6 @@ import {
   History,
 } from "lucide-react";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
   DropdownMenu,
   DropdownMenuTrigger,
   DropdownMenuContent,
@@ -31,15 +24,9 @@ import { fetchData, deleteData } from "@/utils/fetch";
 import Loading from "@/components/loading";
 import ApiError from "@/components/api-error";
 import Header from "@/components/header";
-import { CATEGORIES } from "@/constants/onboarding-constants";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import BrandMatrixSummaryComponent from "@/components/brand-matrix-summary";
-import {
-  MatrixProvider,
-  useMatrix,
-  useBrandMatrix,
-} from "@/context/matrixContext";
+import { MatrixProvider, useMatrix } from "@/context/matrixContext";
 import {
   Dialog,
   DialogContent,
@@ -48,7 +35,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Checkbox } from "@/components/ui/checkbox";
 import {
   Card,
   CardContent,
@@ -66,22 +52,12 @@ const BrandListContent = ({ userId }: { userId: string }) => {
   const [error, setError] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [brands, setBrands] = useState<IBrand[]>([]);
-  const [selectedCategory, setSelectedCategory] = useState("all");
-  const [viewMode, setViewMode] = useState<"card" | "table">("card");
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [brandToDelete, setBrandToDelete] = useState<IBrand | null>(null);
   const [deleting, setDeleting] = useState(false);
 
   // Use Matrix Context
-  const {
-    loading: matrixLoading,
-    selectedPeriod,
-    showMatrixData,
-    setSelectedPeriod,
-    setShowMatrixData,
-    refreshMatrixData,
-    getMatrixDataForBrand,
-  } = useMatrix();
+  const { refreshMatrixData } = useMatrix();
 
   useEffect(() => {
     async function fetchAllBrandsOfUser() {
@@ -151,10 +127,8 @@ const BrandListContent = ({ userId }: { userId: string }) => {
     const matchesSearch = brand?.name
       ?.toLowerCase()
       .includes(searchTerm.toLowerCase());
-    const matchesCategory =
-      selectedCategory === "all" || brand.category === selectedCategory;
 
-    return matchesSearch && matchesCategory;
+    return matchesSearch;
   });
 
   const formatDate = (dateString: Date) => {
@@ -218,9 +192,6 @@ const BrandListContent = ({ userId }: { userId: string }) => {
   }
 
   const BrandCard: React.FC<{ brand: IBrand }> = ({ brand }) => {
-    const { matrixData: brandMatrixData, loading: brandMatrixLoading } =
-      useBrandMatrix(brand._id.toString());
-
     return (
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6 hover:shadow-md transition-shadow">
         <div className="flex items-start justify-between mb-4">
@@ -334,26 +305,6 @@ const BrandListContent = ({ userId }: { userId: string }) => {
           )}
         </div>
 
-        {/* Matrix Data Section */}
-        {showMatrixData && (
-          <div className="mb-4 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
-            {brandMatrixLoading ? (
-              <div className="flex items-center justify-center py-4">
-                <Loading message="Loading metrics..." />
-              </div>
-            ) : brandMatrixData ? (
-              <BrandMatrixSummaryComponent
-                matrixData={brandMatrixData}
-                compact
-              />
-            ) : (
-              <div className="text-center py-4 text-gray-500 dark:text-gray-400">
-                <p className="text-sm">No analysis data available</p>
-              </div>
-            )}
-          </div>
-        )}
-
         <div className="flex justify-between text-sm">
           <Link
             href={`/${userId}/brands/${brand._id}/view-logs`}
@@ -368,136 +319,6 @@ const BrandListContent = ({ userId }: { userId: string }) => {
       </div>
     );
   };
-
-  const BrandTable: React.FC = () => (
-    <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-      <thead className="bg-gray-50 dark:bg-gray-700">
-        <tr>
-          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-            Brand
-          </th>
-          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-            Category
-          </th>
-          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-            Region
-          </th>
-          {showMatrixData && (
-            <>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                Avg Score
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                Analyses
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                Success Rate
-              </th>
-            </>
-          )}
-          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-            Last Updated
-          </th>
-          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-            Actions
-          </th>
-        </tr>
-      </thead>
-      <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-        {filteredBrands.map((brand) => {
-          const brandMatrixData = getMatrixDataForBrand(brand._id.toString());
-
-          return (
-            <tr
-              key={`${brand._id}-${brand.name}`}
-              className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-            >
-              <td className="px-6 py-4 whitespace-nowrap">
-                <div className="flex items-center">
-                  <div className="w-8 h-8 bg-indigo-100 dark:bg-indigo-900 rounded-md flex items-center justify-center mr-3">
-                    <Building2 className="w-4 h-4 text-accent dark:text-accent" />
-                  </div>
-                  <Link
-                    href={`/${userId}/brands/${brand._id}/dashboard`}
-                    className="text-sm font-medium text-gray-900 dark:text-white underline hover:text-primary"
-                  >
-                    {brand.name}
-                  </Link>
-                </div>
-              </td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                {brand.category}
-              </td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                {brand.region}
-              </td>
-              {showMatrixData && (
-                <>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm">
-                    {matrixLoading ? (
-                      <div className="animate-pulse bg-gray-200 dark:bg-gray-600 h-4 w-12 rounded"></div>
-                    ) : brandMatrixData?.hasData ? (
-                      <span
-                        className={`font-medium ${
-                          brandMatrixData.avgWeightedScore >= 80
-                            ? "text-green-600 dark:text-green-400"
-                            : brandMatrixData.avgWeightedScore >= 60
-                            ? "text-yellow-600 dark:text-yellow-400"
-                            : brandMatrixData.avgWeightedScore >= 40
-                            ? "text-orange-600 dark:text-orange-400"
-                            : "text-red-600 dark:text-red-400"
-                        }`}
-                      >
-                        {brandMatrixData.avgWeightedScore}%
-                      </span>
-                    ) : (
-                      <span className="text-gray-400 text-xs">No data</span>
-                    )}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                    {matrixLoading ? (
-                      <div className="animate-pulse bg-gray-200 dark:bg-gray-600 h-4 w-8 rounded"></div>
-                    ) : brandMatrixData?.hasData ? (
-                      brandMatrixData.totalAnalyses
-                    ) : (
-                      <span className="text-gray-400 text-xs">-</span>
-                    )}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm">
-                    {matrixLoading ? (
-                      <div className="animate-pulse bg-gray-200 dark:bg-gray-600 h-4 w-12 rounded"></div>
-                    ) : brandMatrixData?.hasData ? (
-                      <span
-                        className={`px-2 py-1 text-xs font-medium rounded-full ${
-                          brandMatrixData.successRate >= 90
-                            ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
-                            : brandMatrixData.successRate >= 70
-                            ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200"
-                            : "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200"
-                        }`}
-                      >
-                        {brandMatrixData.successRate}%
-                      </span>
-                    ) : (
-                      <span className="text-gray-400 text-xs">-</span>
-                    )}
-                  </td>
-                </>
-              )}
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                {formatDate(brand.updatedAt)}
-              </td>
-              <td className="px-6 py-4 text-left">
-                <div className="flex items-center">
-                  <ActionMenu brand={brand} />
-                </div>
-              </td>
-            </tr>
-          );
-        })}
-      </tbody>
-    </table>
-  );
 
   return (
     <div className="space-y-6 h-screen overflow-auto">
@@ -598,7 +419,7 @@ const BrandListContent = ({ userId }: { userId: string }) => {
           </div>
         )}
 
-        {/* Filters and Search */}
+        {/* Search */}
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
           <div className="flex flex-col sm:flex-row gap-4">
             <div className="flex-1">
@@ -615,85 +436,6 @@ const BrandListContent = ({ userId }: { userId: string }) => {
                 />
               </div>
             </div>
-
-            <div className="flex items-center space-x-4">
-              <Select
-                value={selectedCategory}
-                onValueChange={(value) => setSelectedCategory(value)}
-              >
-                <SelectTrigger className="w-fit">
-                  <SelectValue placeholder="Select category" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Categories</SelectItem>
-                  {CATEGORIES.map((category) => (
-                    <SelectItem key={category} value={category}>
-                      {category}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-
-              <div className="flex items-center space-x-4">
-                {/* Matrix Data Toggle */}
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id="showMatrix"
-                    checked={showMatrixData}
-                    onCheckedChange={(checked) =>
-                      setShowMatrixData(checked === true)
-                    }
-                  />
-                  <label
-                    htmlFor="showMatrix"
-                    className="text-sm text-gray-700 dark:text-gray-300"
-                  >
-                    Show Analytics
-                  </label>
-                </div>
-
-                {/* Period Selection */}
-                {showMatrixData && (
-                  <Select
-                    value={selectedPeriod}
-                    onValueChange={setSelectedPeriod}
-                  >
-                    <SelectTrigger className="w-[100px]">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="7d">7 days</SelectItem>
-                      <SelectItem value="30d">30 days</SelectItem>
-                      <SelectItem value="90d">90 days</SelectItem>
-                    </SelectContent>
-                  </Select>
-                )}
-
-                {/* View Mode Toggle */}
-                <div className="flex border border-gray-300 dark:border-gray-600 rounded-md">
-                  <button
-                    onClick={() => setViewMode("card")}
-                    className={`px-3 py-2 text-sm font-medium ${
-                      viewMode === "card"
-                        ? "bg-accent/5 dark:bg-accent/5 text-accent dark:text-accent"
-                        : "text-gray-500 dark:text-gray-200 hover:text-gray-700 dark:hover:text-gray-200"
-                    } transition-colors`}
-                  >
-                    Cards
-                  </button>
-                  <button
-                    onClick={() => setViewMode("table")}
-                    className={`px-3 py-2 text-sm font-medium border-l border-gray-300 dark:border-gray-600 ${
-                      viewMode === "table"
-                        ? "bg-accent/5 dark:bg-accent/5 text-accent dark:text-accent"
-                        : "text-gray-500 dark:text-gray-200 hover:text-gray-700 dark:hover:text-gray-200"
-                    } transition-colors`}
-                  >
-                    Table
-                  </button>
-                </div>
-              </div>
-            </div>
           </div>
         </div>
 
@@ -702,19 +444,11 @@ const BrandListContent = ({ userId }: { userId: string }) => {
         )}
 
         {/* Results */}
-        {viewMode === "card" ? (
-          <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-            {filteredBrands.map((brand) => (
-              <BrandCard key={`${brand._id}`} brand={brand} />
-            ))}
-          </div>
-        ) : (
-          <div className="bg-white dark:bg-gray-800 shadow-sm rounded-lg border border-gray-200 dark:border-gray-700">
-            <div className="overflow-x-auto">
-              <BrandTable />
-            </div>
-          </div>
-        )}
+        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+          {filteredBrands.map((brand) => (
+            <BrandCard key={`${brand._id}`} brand={brand} />
+          ))}
+        </div>
 
         {filteredBrands.length === 0 && (
           <div className="text-center py-12">
@@ -723,11 +457,11 @@ const BrandListContent = ({ userId }: { userId: string }) => {
               No brands found
             </h3>
             <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-              {searchTerm || selectedCategory !== "all"
+              {searchTerm
                 ? "Try adjusting your search criteria."
                 : "Get started by creating your first brand."}
             </p>
-            {!searchTerm && selectedCategory === "all" && (
+            {!searchTerm && (
               <div className="mt-6">
                 <Link
                   href={`/${userId}/brands/create-brand`}

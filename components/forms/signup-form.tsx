@@ -131,7 +131,7 @@ export function SignupForm() {
                 <FormControl>
                   <Input
                     type="email"
-                    placeholder="jhon.doe@gmail.com"
+                    placeholder="john.doe@gmail.com"
                     autoComplete="email"
                     {...field}
                   />

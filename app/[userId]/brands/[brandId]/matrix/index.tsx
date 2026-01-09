@@ -308,9 +308,6 @@ const MatrixPage = ({
                   <th className="text-center py-3 px-4 font-medium text-gray-900 dark:text-white">
                     Total Prompts
                   </th>
-                  <th className="text-center py-3 px-4 font-medium text-gray-900 dark:text-white">
-                    Success Rate
-                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -367,11 +364,6 @@ const MatrixPage = ({
                     <td className="py-4 px-4 text-center">
                       <span className="text-gray-900 dark:text-white font-medium">
                         {item.prompts}
-                      </span>
-                    </td>
-                    <td className="py-4 px-4 text-center">
-                      <span className="text-gray-900 dark:text-white font-medium">
-                        {item.successRate}%
                       </span>
                     </td>
                   </tr>
