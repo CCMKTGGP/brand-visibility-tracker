@@ -270,18 +270,18 @@ export default function ViewLogs({
   // Use real logs data or empty array
   const logs = logsData?.logs || [];
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "success":
-        return "text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20";
-      case "error":
-        return "text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20";
-      case "warning":
-        return "text-yellow-600 dark:text-yellow-400 bg-yellow-50 dark:bg-yellow-900/20";
-      default:
-        return "text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-900/20";
-    }
-  };
+  // const getStatusColor = (status: string) => {
+  //   switch (status) {
+  //     case "success":
+  //       return "text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20";
+  //     case "error":
+  //       return "text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20";
+  //     case "warning":
+  //       return "text-yellow-600 dark:text-yellow-400 bg-yellow-50 dark:bg-yellow-900/20";
+  //     default:
+  //       return "text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-900/20";
+  //   }
+  // };
 
   const getScoreColor = (score: number) => {
     if (score >= 80) return "text-green-600 dark:text-green-400";

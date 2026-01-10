@@ -201,7 +201,7 @@ export const GET = async (
     // Extract results from aggregation
     const currentData = matrixAggregation[0];
     const matrixResults = currentData.matrixData || [];
-    const totalCount = currentData.totalCount[0]?.total || 0;
+    // const totalCount = currentData.totalCount[0]?.total || 0;
     const allResults = currentData.allData || [];
     const summaryStats = currentData.summaryStats[0] || {
       totalAnalyses: 0,
