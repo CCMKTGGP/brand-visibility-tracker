@@ -270,8 +270,8 @@ export const inviteMemberEmailTemplate = (
         <div class="email-wrapper">
           <div class="container">
             <div class="header">
-              <div class="logo">Brand Visibility Tracker</div>
-              <p class="header-subtitle">Professional Brand Analysis Platform</p>
+              <div class="logo">GEOStatus.cc</div>
+              <p class="header-subtitle">Track how AI models describe your brand across every stage of the buyer journey</p>
             </div>
             
             <div class="content">
@@ -361,10 +361,10 @@ export const inviteMemberEmailTemplate = (
                 <strong>Need help?</strong> Our support team is here to assist you.
               </p>
               <p>
-                Contact us at <a href="mailto:support@brandvisibilitytracker.com">support@brandvisibilitytracker.com</a> or visit our <a href="#">Help Center</a>
+                Contact us at <a href="mailto:help@geostatus.cc">help@geostatus.cc</a>
               </p>
               <p style="margin-top: 20px; font-size: 12px; color: #a0aec0;">
-                This email was sent by Brand Visibility Tracker. If you didn't expect this invitation, you can safely ignore this email.
+                This email was sent by GEOStatus.cc - Full-Funnel AI Visibility. If you didn't expect this invitation, you can safely ignore this email.
               </p>
             </div>
           </div>

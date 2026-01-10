@@ -344,8 +344,8 @@ export const verificationEmailTemplate = (
         <div class="email-wrapper">
           <div class="container">
             <div class="header">
-              <div class="logo">Brand Visibility Tracker</div>
-              <p class="header-subtitle">Professional Brand Analysis Platform</p>
+              <div class="logo">GEOStatus.cc</div>
+              <p class="header-subtitle">Track how AI models describe your brand across every stage of the buyer journey</p>
             </div>
             
             <div class="content">
@@ -389,16 +389,12 @@ export const verificationEmailTemplate = (
                   <div class="step-content">Click the "Verify My Email" button below</div>
                 </div>
                 <div class="step">
-                  <div class="step-number">2</div>
-                  <div class="step-content">You'll be redirected to our secure verification page</div>
-                </div>
-                <div class="step">
                   <div class="step-number">3</div>
-                  <div class="step-content">Your email will be instantly verified and your account activated</div>
+                  <div class="step-content">You’ll be redirected securely to confirm your identity and create your first brand.</div>
                 </div>
                 <div class="step">
                   <div class="step-number">4</div>
-                  <div class="step-content">Start exploring your brand visibility dashboard immediately</div>
+                  <div class="step-content">Your dashboard will activate instantly. No setup required.</div>
                 </div>
               </div>
 
@@ -412,23 +408,23 @@ export const verificationEmailTemplate = (
                 <h3>🚀 What's waiting for you after verification:</h3>
                 <div class="benefit-item">
                   <span class="benefit-icon">⭐</span>
-                  <span>Complete access to your personalized brand dashboard</span>
+                  <span>Full access to your GEOstatus dashboard.</span>
                 </div>
                 <div class="benefit-item">
                   <span class="benefit-icon">⭐</span>
-                  <span>Real-time brand visibility tracking and analytics</span>
+                  <span>Real-time visibility tracking across AI models and funnel stages.</span>
                 </div>
                 <div class="benefit-item">
                   <span class="benefit-icon">⭐</span>
-                  <span>Advanced reporting tools and performance insights</span>
+                  <span>Benchmark competitors at every stage and every AI model.</span>
                 </div>
                 <div class="benefit-item">
                   <span class="benefit-icon">⭐</span>
-                  <span>Team collaboration features and member invitations</span>
+                  <span>Learn where LLMs are learning about you and your category.</span>
                 </div>
                 <div class="benefit-item">
                   <span class="benefit-icon">⭐</span>
-                  <span>Priority customer support and platform updates</span>
+                  <span>Track your brand’s funnel visibility for different value propositions, markets, and demographics.</span>
                 </div>
               </div>
 
@@ -438,7 +434,7 @@ export const verificationEmailTemplate = (
 
               <p style="font-size: 14px; color: #718096; margin-top: 32px;">
                 Having trouble with the button? Copy and paste this link into your browser:<br>
-                <span style="word-break: break-all; color: #636AE8;">${verificationLink}</span>
+                <span style="word-break: break-all; color: #636AE8 !important;">${verificationLink}</span>
               </p>
             </div>
 
@@ -447,10 +443,10 @@ export const verificationEmailTemplate = (
                 <strong>Questions about verification?</strong> We're here to help!
               </p>
               <p>
-                Contact us at <a href="mailto:support@brandvisibilitytracker.com">support@brandvisibilitytracker.com</a> or visit our <a href="#">Help Center</a>
+                Contact us at <a href="mailto:help@geostatus.cc">help@geostatus.cc</a>
               </p>
               <p style="margin-top: 20px; font-size: 12px; color: #a0aec0;">
-                This email was sent by Brand Visibility Tracker. If you didn't create an account with us, please ignore this email.
+                This email was sent by GEOstatus.cc - Full-Funnel AI Visibility. If you didn't create an account with us, please ignore this email.
               </p>
             </div>
           </div>

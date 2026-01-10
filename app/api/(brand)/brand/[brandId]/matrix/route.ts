@@ -10,7 +10,7 @@ import { RouteParams, BrandParams } from "@/types/api";
 
 const MatrixQuerySchema = z.object({
   userId: z.string().min(1, "User ID is required"),
-  period: z.enum(["all", "7d", "30d", "90d"]).optional().default("all"),
+  selectedAnalysisId: z.string().optional(), // analysis_id to filter by specific analysis run
   model: z
     .enum(["all", "ChatGPT", "Claude", "Gemini"])
     .optional()
@@ -19,8 +19,6 @@ const MatrixQuerySchema = z.object({
     .enum(["all", "TOFU", "MOFU", "BOFU", "EVFU"])
     .optional()
     .default("all"),
-  page: z.string().optional().default("1"),
-  limit: z.string().optional().default("50"),
 });
 
 // Matrix analysis API
@@ -52,11 +50,10 @@ export const GET = async (
     // Parse query parameters
     const queryParams = {
       userId: url.searchParams.get("userId"),
-      period: url.searchParams.get("period"),
+      selectedAnalysisId:
+        url.searchParams.get("selectedAnalysisId") || undefined,
       model: url.searchParams.get("model"),
       stage: url.searchParams.get("stage"),
-      page: url.searchParams.get("page"),
-      limit: url.searchParams.get("limit"),
     };
 
     const parse = MatrixQuerySchema.safeParse(queryParams);
@@ -70,9 +67,7 @@ export const GET = async (
       );
     }
 
-    const { userId, period, model, stage, page, limit } = parse.data;
-    const pageNum = parseInt(page);
-    const limitNum = parseInt(limit);
+    const { userId, selectedAnalysisId, model, stage } = parse.data;
 
     // Establish database connection
     await connect();
@@ -100,34 +95,15 @@ export const GET = async (
       );
     }
 
-    // Calculate date range
-    const endDate = new Date();
-    const startDate = new Date();
-    switch (period) {
-      case "7d":
-        startDate.setDate(endDate.getDate() - 7);
-        break;
-      case "30d":
-        startDate.setDate(endDate.getDate() - 30);
-        break;
-      case "90d":
-        startDate.setDate(endDate.getDate() - 90);
-        break;
-      case "all":
-      default:
-        // For "all", don't set a start date filter - fetch all data
-        startDate.setTime(0); // Set to epoch to include all data
-        break;
-    }
-
     // Build analysis filter
     const analysisFilter: any = {
       brand_id: new Types.ObjectId(brandId),
     };
 
-    // Only add date filter if not fetching all data
-    if (period !== "all") {
-      analysisFilter.createdAt = { $gte: startDate, $lte: endDate };
+    // If a specific analysis ID is selected, filter by that analysis_id
+    // Otherwise, fetch all data
+    if (selectedAnalysisId) {
+      analysisFilter.analysis_id = selectedAnalysisId;
     }
 
     if (model !== "all") {
@@ -147,8 +123,8 @@ export const GET = async (
       // Stage 2: Use $facet to calculate everything in parallel
       {
         $facet: {
-          // Paginated matrix data
-          paginatedData: [
+          // Matrix data (no pagination, max 12 analysis rows per run)
+          matrixData: [
             {
               $group: {
                 _id: {
@@ -170,11 +146,10 @@ export const GET = async (
                 "_id.stage": 1,
               },
             },
-            { $skip: (pageNum - 1) * limitNum },
-            { $limit: limitNum },
+            { $limit: 12 }, // Max 12 analysis rows per run
           ],
 
-          // Total count of unique model-stage combinations
+          // Total count of unique model-stage combinations (for reference)
           totalCount: [
             {
               $group: {
@@ -225,8 +200,8 @@ export const GET = async (
 
     // Extract results from aggregation
     const currentData = matrixAggregation[0];
-    const paginatedResults = currentData.paginatedData || [];
-    const totalCount = currentData.totalCount[0]?.total || 0;
+    const matrixResults = currentData.matrixData || [];
+    // const totalCount = currentData.totalCount[0]?.total || 0;
     const allResults = currentData.allData || [];
     const summaryStats = currentData.summaryStats[0] || {
       totalAnalyses: 0,
@@ -235,15 +210,9 @@ export const GET = async (
     };
 
     // If no data found, return empty response
-    if (paginatedResults.length === 0) {
+    if (matrixResults.length === 0) {
       const response = {
         data: [],
-        pagination: {
-          page: pageNum,
-          limit: limitNum,
-          total: totalCount,
-          hasMore: false,
-        },
         summary: {
           totalAnalyses: 0,
           totalPrompts: 0,
@@ -252,16 +221,11 @@ export const GET = async (
           worstPerforming: null,
         },
         filters: {
-          period,
+          selectedAnalysisId: selectedAnalysisId || null,
           model,
           stage,
-          availablePeriods: ["all", "7d", "30d", "90d"],
           availableModels: ["all", "ChatGPT", "Claude", "Gemini"],
           availableStages: ["all", "TOFU", "MOFU", "BOFU", "EVFU"],
-          dateRange: {
-            start: startDate.toISOString(),
-            end: endDate.toISOString(),
-          },
         },
       };
 
@@ -275,8 +239,8 @@ export const GET = async (
       );
     }
 
-    // Process paginated matrix data
-    const matrixData = paginatedResults.map((result: any) => {
+    // Process matrix data
+    const matrixData = matrixResults.map((result: any) => {
       const currentWeightedScore = result.avgWeightedScore || 0;
 
       return {
@@ -321,12 +285,6 @@ export const GET = async (
     // Build final response with optimized data
     const response = {
       data: matrixData,
-      pagination: {
-        page: pageNum,
-        limit: limitNum,
-        total: totalCount,
-        hasMore: pageNum * limitNum < totalCount,
-      },
       summary: {
         totalAnalyses: summaryStats.totalAnalyses,
         totalPrompts: summaryStats.totalPrompts,
@@ -335,16 +293,11 @@ export const GET = async (
         worstPerforming,
       },
       filters: {
-        period,
+        selectedAnalysisId: selectedAnalysisId || null,
         model,
         stage,
-        availablePeriods: ["all", "7d", "30d", "90d"],
         availableModels: ["all", ...availableModels],
         availableStages: ["all", ...availableStages],
-        dateRange: {
-          start: startDate.toISOString(),
-          end: endDate.toISOString(),
-        },
       },
     };
 

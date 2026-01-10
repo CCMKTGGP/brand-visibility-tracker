@@ -10,6 +10,8 @@ import {
   Play,
   Clock,
 } from "lucide-react";
+import { Chart as ChartJS, ArcElement, Tooltip, Legend } from "chart.js";
+import { Pie } from "react-chartjs-2";
 import {
   Select,
   SelectContent,
@@ -37,6 +39,9 @@ import { AnalysisModelSelector } from "@/components/analysis-model-selector";
 import { useAnalysisStatus } from "@/hooks/use-analysis-status";
 import { isUserOwner, isUserViewer } from "@/utils/checkUserRole";
 import CompetitorTreemap from "@/components/competitor-treemap";
+
+// Register Chart.js components
+ChartJS.register(ArcElement, Tooltip, Legend);
 
 const DashboardPage = ({
   userId,
@@ -290,65 +295,105 @@ const DashboardPage = ({
 
   const SentimentAnalysis: React.FC<{
     sentiment: DashboardBrand["sentiment"];
-  }> = ({ sentiment }) => (
-    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-      <div className="flex items-center justify-between mb-6">
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-          Sentiment Analysis
-        </h3>
-      </div>
+  }> = ({ sentiment }) => {
+    const chartData = {
+      labels: ["Strongly Positive", "Positive", "Neutral", "Negative"],
+      datasets: [
+        {
+          label: "Sentiment Distribution",
+          data: [
+            sentiment.distribution.stronglyPositive,
+            sentiment.distribution.positive,
+            sentiment.distribution.neutral,
+            sentiment.distribution.negative,
+          ],
+          backgroundColor: [
+            "rgb(34, 197, 94)", // green-500 → strongly positive
+            "rgb(134, 239, 172)", // green-300 → positive
+            "rgb(209, 213, 219)", // gray-300  → neutral
+            "rgb(252, 165, 165)", // red-300   → negative
+          ],
+          borderColor: [
+            "rgb(21, 128, 61)", // green-700
+            "rgb(21, 128, 61)", // green-700
+            "rgb(55, 65, 81)", // gray-700
+            "rgb(185, 28, 28)", // red-700
+          ],
+          borderWidth: 2,
+        },
+      ],
+    };
 
-      <div className="space-y-4">
-        <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-4">
-          <div className="flex h-4 rounded-full overflow-hidden">
-            <div
-              className="bg-green-500"
-              style={{ width: `${sentiment.distribution.stronglyPositive}%` }}
-            />
-            <div
-              className="bg-green-400"
-              style={{ width: `${sentiment.distribution.positive}%` }}
-            />
-            <div
-              className="bg-gray-400"
-              style={{ width: `${sentiment.distribution.neutral}%` }}
-            />
-            <div
-              className="bg-red-400"
-              style={{ width: `${sentiment.distribution.negative}%` }}
-            />
-          </div>
+    const chartOptions = {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          position: "bottom" as const,
+          labels: {
+            padding: 15,
+            usePointStyle: true,
+            font: {
+              size: 12,
+            },
+            color: "rgb(107, 114, 128)",
+          },
+        },
+        tooltip: {
+          callbacks: {
+            label: function (context: any) {
+              const label = context.label || "";
+              const value = context.parsed || 0;
+              return `${label}: ${value}%`;
+            },
+          },
+        },
+      },
+    };
+
+    return (
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+        <div className="flex items-center justify-between mb-6">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+            Sentiment Analysis
+          </h3>
         </div>
 
-        <div className="grid grid-cols-2 gap-4 text-sm">
-          <div className="flex items-center">
-            <div className="w-3 h-3 bg-green-500 rounded-full mr-2" />
-            <span className="text-gray-600 dark:text-gray-400">
-              Strongly Positive: {sentiment.distribution.stronglyPositive}%
-            </span>
+        <div className="space-y-4">
+          <div className="h-64">
+            <Pie data={chartData} options={chartOptions} />
           </div>
-          <div className="flex items-center">
-            <div className="w-3 h-3 bg-green-400 rounded-full mr-2" />
-            <span className="text-gray-600 dark:text-gray-400">
-              Positive: {sentiment.distribution.positive}%
-            </span>
-          </div>
-          <div className="flex items-center">
-            <div className="w-3 h-3 bg-gray-400 rounded-full mr-2" />
-            <span className="text-gray-600 dark:text-gray-400">
-              Neutral: {sentiment.distribution.neutral}%
-            </span>
-          </div>
-          <div className="flex items-center">
-            <div className="w-3 h-3 bg-red-400 rounded-full mr-2" />
-            <span className="text-gray-600 dark:text-gray-400">
-              Negative: {sentiment.distribution.negative}%
-            </span>
+
+          <div className="grid grid-cols-2 gap-4 text-sm">
+            <div className="flex items-center">
+              <div className="w-3 h-3 bg-green-500 rounded-full mr-2" />
+              <span className="text-gray-600 dark:text-gray-400">
+                Strongly Positive: {sentiment.distribution.stronglyPositive}%
+              </span>
+            </div>
+            <div className="flex items-center">
+              <div className="w-3 h-3 bg-green-400 rounded-full mr-2" />
+              <span className="text-gray-600 dark:text-gray-400">
+                Positive: {sentiment.distribution.positive}%
+              </span>
+            </div>
+            <div className="flex items-center">
+              <div className="w-3 h-3 bg-gray-400 rounded-full mr-2" />
+              <span className="text-gray-600 dark:text-gray-400">
+                Neutral: {sentiment.distribution.neutral}%
+              </span>
+            </div>
+            <div className="flex items-center">
+              <div className="w-3 h-3 bg-red-400 rounded-full mr-2" />
+              <span className="text-gray-600 dark:text-gray-400">
+                Negative: {sentiment.distribution.negative}%
+              </span>
+            </div>
           </div>
         </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   const ModelPerformance: React.FC<{
     performance: DashboardBrand["modelPerformance"];

@@ -14,16 +14,8 @@ import { LogsResponse } from "@/types/brand";
 import { useUserContext } from "@/context/userContext";
 import { fetchData } from "@/utils/fetch";
 import Loading from "@/components/loading";
-import { models, periods, stages } from "@/constants/dashboard";
-import {
-  Pagination,
-  PaginationContent,
-  PaginationItem,
-  PaginationLink,
-  PaginationNext,
-  PaginationPrevious,
-  PaginationEllipsis,
-} from "@/components/ui/pagination";
+import { models, stages } from "@/constants/dashboard";
+import moment from "moment";
 import { Input } from "@/components/ui/input";
 import { useAnalysisStatus } from "@/hooks/use-analysis-status";
 import { Badge } from "@/components/ui/badge";
@@ -46,31 +38,56 @@ export default function ViewLogs({
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
   const [selectedModel, setSelectedModel] = useState("all");
   const [selectedStage, setSelectedStage] = useState("all");
-  const [selectedStatus, setSelectedStatus] = useState("all");
-  const [dateRange, setDateRange] = useState("all");
+  const [selectedAnalysisId, setSelectedAnalysisId] = useState<string | null>(
+    null
+  );
+  const [analysisRuns, setAnalysisRuns] = useState<
+    Array<{ analysis_id: string; createdAt: string; count: number }>
+  >([]);
+  const [analysisRunsLoaded, setAnalysisRunsLoaded] = useState(false);
   const [logsData, setLogsData] = useState<LogsResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [currentPage, setCurrentPage] = useState(1);
-  const [limit] = useState(10); // setLimit removed as not currently used
   const [sortBy, setSortBy] = useState("createdAt");
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   const [expandedResponses, setExpandedResponses] = useState<Set<string>>(
     new Set()
   );
 
+  // Fetch analysis runs list
+  useEffect(() => {
+    async function fetchAnalysisRuns() {
+      if (!userId || !brandId || !user._id) return;
+
+      try {
+        const url = `/api/brand/${brandId}/analysis-runs?userId=${user._id}`;
+        const response = await fetchData(url);
+        const { data } = response;
+        const runs = data.analysisRuns || [];
+        setAnalysisRuns(runs);
+        // Set default to latest analysis if available and not already set
+        if (runs.length > 0 && selectedAnalysisId === null) {
+          setSelectedAnalysisId(runs[0].analysis_id);
+        }
+        setAnalysisRunsLoaded(true);
+      } catch (err) {
+        console.error("Failed to fetch analysis runs:", err);
+        setAnalysisRunsLoaded(true); // Set to true even on error to prevent blocking
+      }
+    }
+
+    fetchAnalysisRuns();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId, brandId, user._id]);
+
   // Debounce search term
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedSearchTerm(searchTerm);
-      // Reset to first page when search changes
-      if (searchTerm !== debouncedSearchTerm) {
-        setCurrentPage(1);
-      }
     }, 500); // 500ms delay
 
     return () => clearTimeout(timer);
-  }, [searchTerm, debouncedSearchTerm]);
+  }, [searchTerm]);
 
   // Handle search input change
   const handleSearchChange = useCallback((value: string) => {
@@ -78,7 +95,6 @@ export default function ViewLogs({
     // If search is cleared, immediately update debounced term
     if (value === "") {
       setDebouncedSearchTerm("");
-      setCurrentPage(1);
     }
   }, []);
 
@@ -172,16 +188,17 @@ export default function ViewLogs({
 
       const params = new URLSearchParams({
         userId: user._id,
-        page: currentPage.toString(),
-        limit: limit.toString(),
-        period: dateRange,
         model: selectedModel,
         stage: selectedStage,
-        status: selectedStatus,
+        status: "all",
         search: debouncedSearchTerm,
         sortBy: sortBy,
         sortOrder: "desc",
       });
+
+      if (selectedAnalysisId) {
+        params.append("selectedAnalysisId", selectedAnalysisId);
+      }
 
       const url = `/api/brand/${brandId}/logs?${params.toString()}`;
       const response = await fetchData(url);
@@ -199,21 +216,19 @@ export default function ViewLogs({
     userId,
     brandId,
     user._id,
-    dateRange,
+    selectedAnalysisId,
     selectedModel,
     selectedStage,
-    selectedStatus,
     debouncedSearchTerm,
-    currentPage,
-    limit,
     sortBy,
   ]);
 
-  // Fetch logs data
+  // Fetch logs data - only after analysis runs are loaded
   useEffect(() => {
+    if (!analysisRunsLoaded) return;
     setLoading(true);
     fetchLogsData();
-  }, [fetchLogsData]);
+  }, [analysisRunsLoaded, fetchLogsData]);
 
   // use effect to fetch updated logs
   useEffect(() => {
@@ -254,51 +269,19 @@ export default function ViewLogs({
 
   // Use real logs data or empty array
   const logs = logsData?.logs || [];
-  const pagination = logsData?.pagination;
 
-  // Pagination helpers
-  const totalPages = pagination?.totalPages || 1;
-  const hasNextPage = pagination?.hasMore || false;
-  const hasPreviousPage = pagination?.hasPrevious || false;
-
-  const handlePageChange = (page: number) => {
-    if (page >= 1 && page <= totalPages) {
-      setCurrentPage(page);
-    }
-  };
-
-  const generatePageNumbers = () => {
-    const pages = [];
-    const maxPagesToShow = 5;
-
-    if (totalPages <= maxPagesToShow) {
-      for (let i = 1; i <= totalPages; i++) {
-        pages.push(i);
-      }
-    } else {
-      const start = Math.max(1, currentPage - 2);
-      const end = Math.min(totalPages, start + maxPagesToShow - 1);
-
-      for (let i = start; i <= end; i++) {
-        pages.push(i);
-      }
-    }
-
-    return pages;
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "success":
-        return "text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20";
-      case "error":
-        return "text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20";
-      case "warning":
-        return "text-yellow-600 dark:text-yellow-400 bg-yellow-50 dark:bg-yellow-900/20";
-      default:
-        return "text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-900/20";
-    }
-  };
+  // const getStatusColor = (status: string) => {
+  //   switch (status) {
+  //     case "success":
+  //       return "text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20";
+  //     case "error":
+  //       return "text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20";
+  //     case "warning":
+  //       return "text-yellow-600 dark:text-yellow-400 bg-yellow-50 dark:bg-yellow-900/20";
+  //     default:
+  //       return "text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-900/20";
+  //   }
+  // };
 
   const getScoreColor = (score: number) => {
     if (score >= 80) return "text-green-600 dark:text-green-400";
@@ -329,22 +312,39 @@ export default function ViewLogs({
     switch (stage) {
       case "TOFU":
         return `Rank: ${position}`;
-        
+
       case "MOFU":
         // 1=Positive, 2=Conditional, 3=Neutral, 4=Negative
-        const mofuMap = { 1: "Tone: Positive", 2: "Tone: Conditional", 3: "Tone: Neutral", 4: "Tone: Negative" };
+        const mofuMap = {
+          1: "Tone: Positive",
+          2: "Tone: Conditional",
+          3: "Tone: Neutral",
+          4: "Tone: Negative",
+        };
         return mofuMap[position as keyof typeof mofuMap] || "Tone: Unknown";
-        
+
       case "BOFU":
         // 1=Yes, 2=Partial, 3=Unclear, 4=No
-        const bofuMap = { 1: "Intent: Yes", 2: "Intent: Partial", 3: "Intent: Unclear", 4: "Intent: No" };
+        const bofuMap = {
+          1: "Intent: Yes",
+          2: "Intent: Partial",
+          3: "Intent: Unclear",
+          4: "Intent: No",
+        };
         return bofuMap[position as keyof typeof bofuMap] || "Intent: Unknown";
-        
+
       case "EVFU":
         // 1=Recommend, 2=Caveat, 3=Neutral, 4=Negative
-        const evfuMap = { 1: "Sentiment: Recommend", 2: "Sentiment: Caveat", 3: "Sentiment: Neutral", 4: "Sentiment: Negative" };
-        return evfuMap[position as keyof typeof evfuMap] || "Sentiment: Unknown";
-        
+        const evfuMap = {
+          1: "Sentiment: Recommend",
+          2: "Sentiment: Caveat",
+          3: "Sentiment: Neutral",
+          4: "Sentiment: Negative",
+        };
+        return (
+          evfuMap[position as keyof typeof evfuMap] || "Sentiment: Unknown"
+        );
+
       default:
         return `Position: ${position}`;
     }
@@ -499,38 +499,23 @@ export default function ViewLogs({
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Status
+                Analysis Run
               </label>
               <Select
-                value={selectedStatus}
-                onValueChange={(value) => setSelectedStatus(value)}
+                value={selectedAnalysisId || "all"}
+                onValueChange={(value) =>
+                  setSelectedAnalysisId(value === "all" ? null : value)
+                }
               >
-                <SelectTrigger className="w-44">
+                <SelectTrigger className="w-80">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Status</SelectItem>
-                  <SelectItem value="success">Success</SelectItem>
-                  <SelectItem value="warning">Warning</SelectItem>
-                  <SelectItem value="error">Error</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Period
-              </label>
-              <Select
-                value={dateRange}
-                onValueChange={(value) => setDateRange(value)}
-              >
-                <SelectTrigger className="w-44">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {periods.map(({ label, value }) => (
-                    <SelectItem key={value} value={value}>
-                      {label}
+                  <SelectItem value="all">All Analyses</SelectItem>
+                  {analysisRuns.map((run) => (
+                    <SelectItem key={run.analysis_id} value={run.analysis_id}>
+                      {moment(run.createdAt).format("DD MMM, YYYY | hh:mm a")} (
+                      {run.count} analyses)
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -548,9 +533,8 @@ export default function ViewLogs({
               Recent Activity
             </h3>
             <span className="text-sm text-gray-500 dark:text-gray-400">
-              {pagination
-                ? `${pagination.total} total entries • Page ${pagination.page} of ${totalPages}`
-                : `${filteredLogs.length} entries found`}
+              {filteredLogs.length}{" "}
+              {filteredLogs.length === 1 ? "entry" : "entries"} found
             </span>
           </div>
 
@@ -664,16 +648,12 @@ export default function ViewLogs({
                                             <span className="text-xs font-mono bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded">
                                               {prompt.promptId}
                                             </span>
-                                            <span
-                                              className={`text-xs px-2 py-1 rounded ${getStatusColor(
-                                                prompt.status
-                                              )}`}
-                                            >
-                                              {prompt.status}
-                                            </span>
                                             {prompt.mentionPosition > 0 && (
                                               <span className="text-xs bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300 px-2 py-1 rounded">
-                                                {getMetricLabel(log.stage, prompt.mentionPosition)}
+                                                {getMetricLabel(
+                                                  log.stage,
+                                                  prompt.mentionPosition
+                                                )}
                                               </span>
                                             )}
                                           </div>
@@ -989,55 +969,6 @@ export default function ViewLogs({
               <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
                 Try adjusting your filters to see more results.
               </p>
-            </div>
-          )}
-
-          {/* Pagination */}
-          {pagination && totalPages > 1 && (
-            <div className="mt-6 flex justify-center">
-              <Pagination>
-                <PaginationContent>
-                  <PaginationItem>
-                    <PaginationPrevious
-                      onClick={() => handlePageChange(currentPage - 1)}
-                      className={
-                        !hasPreviousPage
-                          ? "pointer-events-none opacity-50"
-                          : "cursor-pointer"
-                      }
-                    />
-                  </PaginationItem>
-
-                  {generatePageNumbers().map((pageNumber) => (
-                    <PaginationItem key={pageNumber}>
-                      <PaginationLink
-                        onClick={() => handlePageChange(pageNumber)}
-                        isActive={pageNumber === currentPage}
-                        className="cursor-pointer"
-                      >
-                        {pageNumber}
-                      </PaginationLink>
-                    </PaginationItem>
-                  ))}
-
-                  {totalPages > 5 && currentPage < totalPages - 2 && (
-                    <PaginationItem>
-                      <PaginationEllipsis />
-                    </PaginationItem>
-                  )}
-
-                  <PaginationItem>
-                    <PaginationNext
-                      onClick={() => handlePageChange(currentPage + 1)}
-                      className={
-                        !hasNextPage
-                          ? "pointer-events-none opacity-50"
-                          : "cursor-pointer"
-                      }
-                    />
-                  </PaginationItem>
-                </PaginationContent>
-              </Pagination>
             </div>
           )}
         </div>
