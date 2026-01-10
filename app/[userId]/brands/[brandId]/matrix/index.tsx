@@ -13,17 +13,9 @@ import { MatrixData, MatrixResponse } from "@/types/brand";
 import { useUserContext } from "@/context/userContext";
 import { fetchData } from "@/utils/fetch";
 import Loading from "@/components/loading";
-import { models, periods, stages } from "@/constants/dashboard";
-import {
-  Pagination,
-  PaginationContent,
-  PaginationItem,
-  PaginationLink,
-  PaginationNext,
-  PaginationPrevious,
-  PaginationEllipsis,
-} from "@/components/ui/pagination";
+import { models, stages } from "@/constants/dashboard";
 import { Button } from "@/components/ui/button";
+import moment from "moment";
 
 const MatrixPage = ({
   userId,
@@ -36,23 +28,58 @@ const MatrixPage = ({
 
   const [selectedModel, setSelectedModel] = useState("all");
   const [selectedStage, setSelectedStage] = useState("all");
-  const [dateRange, setDateRange] = useState("all");
-  const [page, setPage] = useState(1);
-  const [limit] = useState(10);
+  const [selectedAnalysisId, setSelectedAnalysisId] = useState<string | null>(
+    null
+  );
+  const [analysisRuns, setAnalysisRuns] = useState<
+    Array<{ analysis_id: string; createdAt: string; count: number }>
+  >([]);
+  const [analysisRunsLoaded, setAnalysisRunsLoaded] = useState(false);
   const [matrixData, setMatrixData] = useState<MatrixResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  // Fetch matrix data
+  // Fetch analysis runs list
   useEffect(() => {
-    async function fetchMatrixData() {
+    async function fetchAnalysisRuns() {
       if (!userId || !brandId || !user._id) return;
 
+      try {
+        const url = `/api/brand/${brandId}/analysis-runs?userId=${user._id}`;
+        const response = await fetchData(url);
+        const { data } = response;
+        const runs = data.analysisRuns || [];
+        setAnalysisRuns(runs);
+        // Set default to latest analysis if available and not already set
+        if (runs.length > 0 && selectedAnalysisId === null) {
+          setSelectedAnalysisId(runs[0].analysis_id);
+        }
+        setAnalysisRunsLoaded(true);
+      } catch (err) {
+        console.error("Failed to fetch analysis runs:", err);
+        setAnalysisRunsLoaded(true); // Set to true even on error to prevent blocking
+      }
+    }
+
+    fetchAnalysisRuns();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId, brandId, user._id]);
+
+  // Fetch matrix data - only after analysis runs are loaded
+  useEffect(() => {
+    if (!userId || !brandId || !user._id || !analysisRunsLoaded) return;
+
+    async function fetchMatrixData() {
       try {
         setLoading(true);
         setError("");
 
-        const url = `/api/brand/${brandId}/matrix?userId=${userId}&period=${dateRange}&model=${selectedModel}&stage=${selectedStage}&page=${page.toString()}&limit=${limit.toString()}`;
+        let url = `/api/brand/${brandId}/matrix?userId=${userId}&model=${selectedModel}&stage=${selectedStage}`;
+        if (selectedAnalysisId) {
+          url += `&selectedAnalysisId=${encodeURIComponent(
+            selectedAnalysisId
+          )}`;
+        }
         const response = await fetchData(url);
         const { data } = response;
         setMatrixData(data);
@@ -70,11 +97,10 @@ const MatrixPage = ({
     userId,
     brandId,
     user._id,
-    dateRange,
+    analysisRunsLoaded,
+    selectedAnalysisId,
     selectedModel,
     selectedStage,
-    page,
-    limit,
   ]);
 
   // Loading state
@@ -130,41 +156,6 @@ const MatrixPage = ({
 
   // Use real matrix data
   const matrixItems = matrixData.data;
-  const pagination = matrixData.pagination;
-
-  // Pagination helpers
-  const totalPages = Math.ceil(
-    (pagination?.total || 0) / (pagination?.limit || 10)
-  );
-  const hasNextPage = pagination?.hasMore || false;
-  const hasPreviousPage = (pagination?.page || 1) > 1;
-
-  const handlePageChange = (newPage: number) => {
-    if (newPage >= 1 && newPage <= totalPages) {
-      setPage(newPage);
-    }
-  };
-
-  const generatePageNumbers = () => {
-    const pages = [];
-    const maxPagesToShow = 5;
-    const currentPage = pagination?.page || 1;
-
-    if (totalPages <= maxPagesToShow) {
-      for (let i = 1; i <= totalPages; i++) {
-        pages.push(i);
-      }
-    } else {
-      const start = Math.max(1, currentPage - 2);
-      const end = Math.min(totalPages, start + maxPagesToShow - 1);
-
-      for (let i = start; i <= end; i++) {
-        pages.push(i);
-      }
-    }
-
-    return pages;
-  };
 
   const getScoreColor = (score: number) => {
     if (score >= 80) return "bg-green-500";
@@ -251,19 +242,23 @@ const MatrixPage = ({
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Period
+                Analysis Run
               </label>
               <Select
-                value={dateRange}
-                onValueChange={(value) => setDateRange(value)}
+                value={selectedAnalysisId || "all"}
+                onValueChange={(value) =>
+                  setSelectedAnalysisId(value === "all" ? null : value)
+                }
               >
-                <SelectTrigger className="w-44">
+                <SelectTrigger className="w-80">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {periods.map(({ label, value }) => (
-                    <SelectItem key={value} value={value}>
-                      {label}
+                  <SelectItem value="all">All Analyses</SelectItem>
+                  {analysisRuns.map((run) => (
+                    <SelectItem key={run.analysis_id} value={run.analysis_id}>
+                      {moment(run.createdAt).format("DD MMM, YYYY | hh:mm a")} (
+                      {run.count} analyses)
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -280,12 +275,10 @@ const MatrixPage = ({
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
               Performance Matrix
             </h3>
-            {pagination && (
-              <span className="text-sm text-gray-500 dark:text-gray-400">
-                {pagination.total} total entries • Page {pagination.page} of{" "}
-                {totalPages}
-              </span>
-            )}
+            <span className="text-sm text-gray-500 dark:text-gray-400">
+              {matrixItems.length}{" "}
+              {matrixItems.length === 1 ? "entry" : "entries"} found
+            </span>
           </div>
 
           {/* Table Header */}
@@ -371,60 +364,6 @@ const MatrixPage = ({
               </tbody>
             </table>
           </div>
-
-          {/* Pagination */}
-          {pagination && totalPages > 1 && (
-            <div className="mt-6 flex justify-center">
-              <Pagination>
-                <PaginationContent>
-                  <PaginationItem>
-                    <PaginationPrevious
-                      onClick={() =>
-                        handlePageChange((pagination?.page || 1) - 1)
-                      }
-                      className={
-                        !hasPreviousPage
-                          ? "pointer-events-none opacity-50"
-                          : "cursor-pointer"
-                      }
-                    />
-                  </PaginationItem>
-
-                  {generatePageNumbers().map((pageNumber) => (
-                    <PaginationItem key={pageNumber}>
-                      <PaginationLink
-                        onClick={() => handlePageChange(pageNumber)}
-                        isActive={pageNumber === (pagination?.page || 1)}
-                        className="cursor-pointer"
-                      >
-                        {pageNumber}
-                      </PaginationLink>
-                    </PaginationItem>
-                  ))}
-
-                  {totalPages > 5 &&
-                    (pagination?.page || 1) < totalPages - 2 && (
-                      <PaginationItem>
-                        <PaginationEllipsis />
-                      </PaginationItem>
-                    )}
-
-                  <PaginationItem>
-                    <PaginationNext
-                      onClick={() =>
-                        handlePageChange((pagination?.page || 1) + 1)
-                      }
-                      className={
-                        !hasNextPage
-                          ? "pointer-events-none opacity-50"
-                          : "cursor-pointer"
-                      }
-                    />
-                  </PaginationItem>
-                </PaginationContent>
-              </Pagination>
-            </div>
-          )}
         </div>
       </div>
 

@@ -202,12 +202,6 @@ export interface DashboardResponse {
 
 export interface MatrixResponse {
   data: MatrixData[];
-  pagination: {
-    page: number;
-    limit: number;
-    total: number;
-    hasMore: boolean;
-  };
   summary: {
     totalPrompts: number;
     totalAnalyses: number;
@@ -224,30 +218,18 @@ export interface MatrixResponse {
     } | null;
   };
   filters: {
-    period: string;
+    selectedAnalysisId: string | null;
     model: string;
     stage: string;
-    availablePeriods: string[];
     availableModels: string[];
     availableStages: string[];
-    dateRange: {
-      start: string;
-      end: string;
-    };
   };
 }
 
 export interface LogsResponse {
   logs: LogEntryDetailed[];
-  pagination: {
-    page: number;
-    limit: number;
-    total: number;
-    totalPages: number;
-    hasMore: boolean;
-    hasPrevious: boolean;
-  };
   filters: {
+    selectedAnalysisId: string | null;
     model: string;
     stage: string;
     status: string;
@@ -262,10 +244,7 @@ export interface LogsResponse {
   };
   summary: {
     totalLogs: number;
-    currentPage: number;
-    totalPages: number;
-    showingFrom: number;
-    showingTo: number;
+    showing: number;
   };
 }
 

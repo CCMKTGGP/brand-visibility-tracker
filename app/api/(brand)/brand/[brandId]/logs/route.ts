@@ -21,9 +21,7 @@ import moment from "moment";
 
 const LogsQuerySchema = z.object({
   userId: z.string().min(1, "User ID is required"),
-  page: z.string().optional().default("1"),
-  limit: z.string().optional().default("50"),
-  period: z.enum(["all", "7d", "30d", "90d"]).optional().default("all"),
+  selectedAnalysisId: z.string().optional(), // analysis_id to filter by specific analysis run
   model: z
     .enum(["all", "ChatGPT", "Claude", "Gemini"])
     .optional()
@@ -199,9 +197,7 @@ export const GET = async (
     // Parse query parameters
     const queryParams = {
       userId: url.searchParams.get("userId"),
-      page: url.searchParams.get("page"),
-      limit: url.searchParams.get("limit"),
-      period: url.searchParams.get("period"),
+      selectedAnalysisId: url.searchParams.get("selectedAnalysisId") || undefined,
       model: url.searchParams.get("model"),
       stage: url.searchParams.get("stage"),
       status: url.searchParams.get("status"),
@@ -223,9 +219,7 @@ export const GET = async (
 
     const {
       userId,
-      page,
-      limit,
-      period,
+      selectedAnalysisId,
       model,
       stage,
       status,
@@ -233,9 +227,6 @@ export const GET = async (
       sortBy,
       sortOrder,
     } = parse.data;
-    const pageNum = parseInt(page);
-    const limitNum = parseInt(limit);
-    const skip = (pageNum - 1) * limitNum;
 
     // Establish database connection
     await connect();
@@ -263,34 +254,15 @@ export const GET = async (
       );
     }
 
-    // Calculate date range for period filter
-    const endDate = new Date();
-    const startDate = new Date();
-    switch (period) {
-      case "7d":
-        startDate.setDate(endDate.getDate() - 7);
-        break;
-      case "30d":
-        startDate.setDate(endDate.getDate() - 30);
-        break;
-      case "90d":
-        startDate.setDate(endDate.getDate() - 90);
-        break;
-      case "all":
-      default:
-        // For "all", don't set a start date filter - fetch all data
-        startDate.setTime(0); // Set to epoch to include all data
-        break;
-    }
-
     // Build filter - ensure brandId is properly converted to ObjectId
     const filter: any = {
       brand_id: new Types.ObjectId(brandId),
     };
 
-    // Only add date filter if not fetching all data
-    if (period !== "all") {
-      filter.createdAt = { $gte: startDate, $lte: endDate };
+    // If a specific analysis ID is selected, filter by that analysis_id
+    // Otherwise, fetch all data
+    if (selectedAnalysisId) {
+      filter.analysis_id = selectedAnalysisId;
     }
 
     if (model !== "all") {
@@ -348,14 +320,13 @@ export const GET = async (
         },
       },
 
-      // Stage 3: Use $facet to get paginated data and total count
+      // Stage 3: Use $facet to get data (no pagination, max 12 analysis rows per run)
       {
         $facet: {
-          // Paginated logs with transformation
+          // All logs with transformation (no pagination)
           logs: [
             { $sort: sortOptions },
-            { $skip: skip },
-            { $limit: limitNum },
+            { $limit: 12 }, // Max 12 analysis rows per run
             {
               $project: {
                 id: { $toString: "$_id" },
@@ -430,7 +401,7 @@ export const GET = async (
             },
           ],
 
-          // Total count
+          // Total count (for reference, but not used for pagination)
           totalCount: [{ $count: "total" }],
         },
       },
@@ -455,30 +426,16 @@ export const GET = async (
         }),
       ]);
 
-    // Calculate pagination info
-    const totalPages = Math.ceil(totalCount / limitNum);
-    const hasMore = pageNum < totalPages;
-    const hasPrevious = pageNum > 1;
-
     const response = {
       logs: transformedLogs,
-      pagination: {
-        page: pageNum,
-        limit: limitNum,
-        total: totalCount,
-        totalPages,
-        hasMore,
-        hasPrevious,
-      },
       filters: {
-        period,
+        selectedAnalysisId: selectedAnalysisId || null,
         model,
         stage,
         status,
         search,
         sortBy,
         sortOrder,
-        availablePeriods: ["all", "7d", "30d", "90d"],
         availableModels: ["all", ...availableModels],
         availableStages: ["all", ...availableStages],
         availableStatuses: ["all", ...availableStatuses],
@@ -492,10 +449,7 @@ export const GET = async (
       },
       summary: {
         totalLogs: totalCount,
-        currentPage: pageNum,
-        totalPages,
-        showingFrom: skip + 1,
-        showingTo: Math.min(skip + limitNum, totalCount),
+        showing: transformedLogs.length,
       },
     };
 
