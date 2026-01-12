@@ -116,36 +116,30 @@ const MultiPromptAnalysisSchema = new Schema<IMultiPromptAnalysis>(
       overall: {
         type: String,
         enum: ["positive", "neutral", "negative"],
-        required: true,
       },
       confidence: {
         type: Number,
-        required: true,
         min: 0,
         max: 100,
       },
       distribution: {
         positive: {
           type: Number,
-          required: true,
           min: 0,
           max: 100,
         },
         neutral: {
           type: Number,
-          required: true,
           min: 0,
           max: 100,
         },
         negative: {
           type: Number,
-          required: true,
           min: 0,
           max: 100,
         },
         strongly_positive: {
           type: Number,
-          required: true,
           min: 0,
           max: 100,
         },
@@ -235,22 +229,18 @@ const MultiPromptAnalysisSchema = new Schema<IMultiPromptAnalysis>(
           {
             name: {
               type: String,
-              required: true,
             },
             normalized_name: {
               type: String,
-              required: true,
             },
             confidence_score: {
               type: Number,
-              required: true,
               min: 0,
               max: 100,
             },
             source_domains: [
               {
                 type: String,
-                required: true,
               },
             ],
           },
@@ -259,26 +249,21 @@ const MultiPromptAnalysisSchema = new Schema<IMultiPromptAnalysis>(
           {
             domain: {
               type: String,
-              required: true,
             },
             authority_score: {
               type: Number,
-              required: true,
               min: 0,
               max: 100,
             },
             source_type: {
               type: String,
-              required: true,
             },
             relevance: {
               type: String,
               enum: ["high", "medium", "low"],
-              required: true,
             },
             reasoning: {
               type: String,
-              required: true,
             },
           },
         ],
@@ -294,20 +279,16 @@ const MultiPromptAnalysisSchema = new Schema<IMultiPromptAnalysis>(
       trigger_type: {
         type: String,
         enum: ["manual", "scheduled", "webhook"],
-        required: true,
       },
       version: {
         type: String,
-        required: true,
       },
       total_prompts: {
         type: Number,
-        required: true,
         min: 0,
       },
       successful_prompts: {
         type: Number,
-        required: true,
         min: 0,
       },
     },
