@@ -58,7 +58,7 @@
   --radius-xl: calc(var(--radius) + 4px);
 }
 
-/* THEME: Teal + Indigo — Tuned for Brand Visibility Tracker */
+/* THEME: Teal + Indigo — Tuned for surfacemap.cc */
 :root {
   --radius: 0.625rem;
 
