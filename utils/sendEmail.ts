@@ -22,7 +22,7 @@ export const sendEmail = async (
 
     const mailOptions = {
       from: {
-        name: "GEOstatus.cc AI Visibility",
+        name: "Surfacemap.cc AI Visibility",
         email: process.env.SMTP_FROM_EMAIL as string,
       },
       to: userEmail,

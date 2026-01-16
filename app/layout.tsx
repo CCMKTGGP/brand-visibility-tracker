@@ -23,7 +23,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "GEO Status",
+  title: "Surfacemap.cc",
   description: "Track your brand's visibility across various AI platforms",
 };
 

@@ -26,7 +26,7 @@ import { ModeToggle } from "@/components/mode-toggle";
 /**
  * Home Page Component
  *
- * Landing page for the Brand Visibility Tracker application.
+ * Landing page for the surfacemap.cc application.
  * Features hero section, features showcase, testimonials, pricing, and footer.
  *
  * @returns JSX.Element - The complete landing page

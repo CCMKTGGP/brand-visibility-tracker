@@ -344,7 +344,7 @@ export const verificationEmailTemplate = (
         <div class="email-wrapper">
           <div class="container">
             <div class="header">
-              <div class="logo">GEOStatus.cc</div>
+              <div class="logo">Surfacemap.cc</div>
               <p class="header-subtitle">Track how AI models describe your brand across every stage of the buyer journey</p>
             </div>
             
@@ -354,7 +354,7 @@ export const verificationEmailTemplate = (
               <div class="welcome-message">
                 <div class="icon">🎉</div>
                 <h3>Welcome${userName ? `, ${userName}` : ""}!</h3>
-                <p>Thank you for joining Brand Visibility Tracker. You're just one step away from unlocking powerful brand analysis tools and insights.</p>
+                <p>Thank you for joining surfacemap.cc. You're just one step away from unlocking powerful brand analysis tools and insights.</p>
               </div>
 
               <p>
@@ -408,7 +408,7 @@ export const verificationEmailTemplate = (
                 <h3>🚀 What's waiting for you after verification:</h3>
                 <div class="benefit-item">
                   <span class="benefit-icon">⭐</span>
-                  <span>Full access to your GEOstatus dashboard.</span>
+                  <span>Full access to your surfacemap.cc dashboard.</span>
                 </div>
                 <div class="benefit-item">
                   <span class="benefit-icon">⭐</span>
@@ -443,10 +443,10 @@ export const verificationEmailTemplate = (
                 <strong>Questions about verification?</strong> We're here to help!
               </p>
               <p>
-                Contact us at <a href="mailto:help@geostatus.cc">help@geostatus.cc</a>
+                Contact us at <a href="mailto:help@surfacemap.cc">help@surfacemap.cc</a>
               </p>
               <p style="margin-top: 20px; font-size: 12px; color: #a0aec0;">
-                This email was sent by GEOstatus.cc - Full-Funnel AI Visibility. If you didn't create an account with us, please ignore this email.
+                This email was sent by surfacemap.cc - Full-Funnel AI Visibility. If you didn't create an account with us, please ignore this email.
               </p>
             </div>
           </div>

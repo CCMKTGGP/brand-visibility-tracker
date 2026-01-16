@@ -16,7 +16,7 @@ import Image from "next/image";
 export default function Logo() {
   return (
     <Link href="/" className="flex items-center cursor-pointer">
-      <Image src="/logo.svg" alt="GEO Status" width={140} height={140} />
+      <Image src="/logo.svg" alt="Surfacemap.cc" width={140} height={140} />
     </Link>
   );
 }

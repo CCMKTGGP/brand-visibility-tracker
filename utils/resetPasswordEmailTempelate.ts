@@ -325,7 +325,7 @@ export const resetPasswordEmailTemplate = (
         <div class="email-wrapper">
           <div class="container">
             <div class="header">
-              <div class="logo">GEOStatus.cc</div>
+              <div class="logo">Surfacemap.cc</div>
               <p class="header-subtitle">Track how AI models describe your brand across every stage of the buyer journey</p>
             </div>
             
@@ -339,7 +339,7 @@ export const resetPasswordEmailTemplate = (
               </div>
 
               <p>
-                Don't worry! Password resets happen to the best of us. We've received your request to reset your password for your Brand Visibility Tracker account, and we're here to help you get back to analyzing your brand's performance.
+                Don't worry! Password resets happen to the best of us. We've received your request to reset your password for your surfacemap.cc account, and we're here to help you get back to analyzing your brand's performance.
               </p>
 
               <div class="request-details">
@@ -427,10 +427,10 @@ export const resetPasswordEmailTemplate = (
                 <strong>Need help?</strong> Our support team is available 24/7.
               </p>
               <p>
-                Contact us at <a href="mailto:help@geostatus.cc">help@geostatus.cc</a>
+                Contact us at <a href="mailto:help@surfacemap.cc">help@surfacemap.cc</a>
               </p>
               <p style="margin-top: 20px; font-size: 12px; color: #a0aec0;">
-                This email was sent by GEOstatus.cc - Full-Funnel AI Visibility. If you didn't request a password reset, please contact our support team immediately.
+                This email was sent by surfacemap.cc - Full-Funnel AI Visibility. If you didn't request a password reset, please contact our support team immediately.
               </p>
             </div>
           </div>
