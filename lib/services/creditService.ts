@@ -354,7 +354,7 @@ export class CreditService {
     }[] = [];
 
     // Validate models
-    const validModels: AIModel[] = ["ChatGPT", "Claude", "Gemini"];
+    const validModels: AIModel[] = ["ChatGPT", "Claude", "Gemini", "Perplexity"];
     const invalidModels = models.filter((m) => !validModels.includes(m));
     if (invalidModels.length > 0) {
       errors.push(`Invalid models: ${invalidModels.join(", ")}`);

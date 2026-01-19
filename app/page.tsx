@@ -37,7 +37,7 @@ export default function Home() {
       icon: <BarChart3 className="w-6 h-6" />,
       title: "Real-time Analytics",
       description:
-        "Track your brand visibility across ChatGPT, Claude, and Gemini with live performance metrics.",
+        "Track your brand visibility across ChatGPT, Claude, Gemini, and Perplexity with live performance metrics.",
     },
     {
       icon: <Target className="w-6 h-6" />,
@@ -203,9 +203,9 @@ export default function Home() {
               <span className="text-accent block">AI Visibility</span>
             </h1>
             <p className="text-xl text-gray-600 dark:text-gray-300 mb-8 max-w-3xl mx-auto">
-              Monitor how ChatGPT, Claude, and Gemini perceive your brand. Get
-              actionable insights to improve your visibility across AI models
-              and drive better business outcomes.
+              Monitor how ChatGPT, Claude, Gemini, and Perplexity perceive your
+              brand. Get actionable insights to improve your visibility across
+              AI models and drive better business outcomes.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Link

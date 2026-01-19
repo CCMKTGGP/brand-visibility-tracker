@@ -12,7 +12,7 @@ const MatrixQuerySchema = z.object({
   userId: z.string().min(1, "User ID is required"),
   selectedAnalysisId: z.string().optional(), // analysis_id to filter by specific analysis run
   model: z
-    .enum(["all", "ChatGPT", "Claude", "Gemini"])
+    .enum(["all", "ChatGPT", "Claude", "Gemini", "Perplexity"])
     .optional()
     .default("all"),
   stage: z
@@ -224,7 +224,7 @@ export const GET = async (
           selectedAnalysisId: selectedAnalysisId || null,
           model,
           stage,
-          availableModels: ["all", "ChatGPT", "Claude", "Gemini"],
+          availableModels: ["all", "ChatGPT", "Claude", "Gemini", "Perplexity"],
           availableStages: ["all", "TOFU", "MOFU", "BOFU", "EVFU"],
         },
       };

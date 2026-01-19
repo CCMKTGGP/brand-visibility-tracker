@@ -5,7 +5,7 @@ interface IMultiPromptAnalysis {
   _id: Types.ObjectId;
   brand_id: Types.ObjectId;
   analysis_id?: string; // Human-readable ID to group analyses from the same run
-  model: "ChatGPT" | "Claude" | "Gemini";
+  model: "ChatGPT" | "Claude" | "Gemini" | "Perplexity";
   stage: "TOFU" | "MOFU" | "BOFU" | "EVFU";
   overall_score: number;
   weighted_score: number;
@@ -80,7 +80,7 @@ const MultiPromptAnalysisSchema = new Schema<IMultiPromptAnalysis>(
     },
     model: {
       type: String,
-      enum: ["ChatGPT", "Claude", "Gemini"],
+      enum: ["ChatGPT", "Claude", "Gemini", "Perplexity"],
       required: true,
       index: true,
     },

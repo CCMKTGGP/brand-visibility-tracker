@@ -14,7 +14,7 @@ import { PromptService } from "./promptService";
  * ! AI Service Class - Core Brand Analysis Engine
  *
  * This service orchestrates all AI-powered brand analysis operations across
- * multiple LLM providers (ChatGPT, Claude, Gemini) and marketing funnel stages.
+ * multiple LLM providers (ChatGPT, Claude, Gemini, Perplexity) and marketing funnel stages.
  *
  * @architecture
  * - Uses LLMService for direct AI model communication
@@ -588,7 +588,7 @@ export class AIService {
    * * Analyzes a brand using a single AI model and prompt
    *
    * This is the core single-analysis method that:
-   * 1. Routes to the appropriate AI model (ChatGPT, Claude, or Gemini)
+   * 1. Routes to the appropriate AI model (ChatGPT, Claude, Gemini, or Perplexity)
    * 2. Gets raw response from the model
    * 3. Parses and scores the response
    * 4. Returns structured analysis OR detailed error
@@ -597,7 +597,7 @@ export class AIService {
    * This method ALWAYS returns exactly ONE result object - never multiple entries.
    * If parsing fails, it returns an error result with score: 0 and status: "error".
    *
-   * @param model - Which AI model to use (ChatGPT | Claude | Gemini)
+   * @param model - Which AI model to use (ChatGPT | Claude | Gemini | Perplexity)
    * @param prompt - The analysis question to ask the AI
    * @param brandData - Brand context (name, industry, etc.)
    * @param stage - Marketing funnel stage for appropriate scoring
@@ -641,6 +641,9 @@ export class AIService {
           break;
         case "Gemini":
           aiResponse = await LLMService.callGemini(prompt, systemMessage);
+          break;
+        case "Perplexity":
+          aiResponse = await LLMService.callPerplexity(prompt, systemMessage);
           break;
         default:
           throw new Error(`Unsupported AI model: ${model}`);

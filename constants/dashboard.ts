@@ -1,5 +1,5 @@
 export const stages = ["TOFU", "MOFU", "BOFU", "EVFU"];
-export const models = ["ChatGPT", "Claude", "Gemini"];
+export const models = ["ChatGPT", "Claude", "Gemini", "Perplexity"];
 export const periods = [
   {
     label: "All time",

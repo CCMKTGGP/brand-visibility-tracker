@@ -379,7 +379,7 @@ const FunnelHeatmap: React.FC<FunnelHeatmapProps> = ({
       <div className="overflow-x-auto">
         <div className="min-w-full">
           {/* Header Row */}
-          <div className="grid grid-cols-4 gap-2 mb-2">
+          <div className="grid grid-cols-5 gap-2 mb-2">
             <div className="text-center font-medium text-gray-700 dark:text-gray-300 text-sm">
               Stage / Model
             </div>
@@ -403,7 +403,7 @@ const FunnelHeatmap: React.FC<FunnelHeatmapProps> = ({
 
           {/* Data Rows */}
           {data.stages.map((stage) => (
-            <div key={stage} className="grid grid-cols-4 gap-2 mb-2">
+            <div key={stage} className="grid grid-cols-5 gap-2 mb-2">
               {/* Stage Label */}
               <div className="flex flex-col justify-center p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
                 <div className="font-medium text-gray-900 dark:text-white text-sm">

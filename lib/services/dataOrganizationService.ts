@@ -471,7 +471,7 @@ export class DataOrganizationService {
    * Calculate model performance metrics
    */
   private static calculateModelPerformance(analysisData: any[]) {
-    const models: AIModel[] = ["ChatGPT", "Claude", "Gemini"];
+    const models: AIModel[] = ["ChatGPT", "Claude", "Gemini", "Perplexity"];
     const modelPerformance: any = {};
 
     for (const model of models) {
