@@ -8,6 +8,7 @@ import { LLMResponse, LLMConfiguration } from "@/types/services";
  * - OpenAI ChatGPT (GPT-3.5-turbo)
  * - Anthropic Claude (Claude-3.5-sonnet)
  * - Google Gemini
+ * - Perplexity AI (sonar-pro)
  *
  * This service handles:
  * - API authentication and configuration
@@ -28,11 +29,13 @@ export class LLMService {
       ChatGPT: process.env.OPENAI_API_KEY,
       Claude: process.env.CLAUDE_API_KEY,
       Gemini: process.env.GEMINI_API_KEY,
+      Perplexity: process.env.PERPLEXITY_API_KEY,
     },
     AI_ENDPOINTS: {
       ChatGPT: process.env.OPENAI_API_URL!,
       Claude: process.env.CLAUDE_API_URL!,
       Gemini: process.env.GEMINI_API_URL!,
+      Perplexity: process.env.PERPLEXITY_API_URL!,
     },
   };
 
@@ -216,6 +219,68 @@ export class LLMService {
       }
       throw new Error(
         `Gemini API error: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`
+      );
+    }
+  }
+
+  /**
+   * Calls Perplexity AI API (sonar-pro)
+   *
+   * Sends a prompt to Perplexity with an optional system message that defines
+   * the AI's behavior and context. Perplexity uses a similar API format to ChatGPT
+   * with OpenAI-compatible endpoints.
+   *
+   * @param prompt - The user prompt/question to send to Perplexity
+   * @param systemMessage - System-level instructions for the AI's behavior
+   * @returns Promise resolving to standardized LLM response with timing
+   * @throws Error if API key is not configured or API call fails
+   */
+  public static async callPerplexity(
+    prompt: string,
+    systemMessage: string = "You are a helpful AI assistant."
+  ): Promise<LLMResponse> {
+    const startTime = Date.now();
+
+    if (!this.LLM_CONFIG.API_KEYS.Perplexity) {
+      throw new Error("Perplexity API key not configured");
+    }
+
+    try {
+      // Make API request to Perplexity with proper message formatting
+      const response = await axios.post(
+        this.LLM_CONFIG.AI_ENDPOINTS.Perplexity,
+        {
+          model: "sonar-pro",
+          messages: [
+            { role: "system", content: systemMessage },
+            { role: "user", content: prompt },
+          ],
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${this.LLM_CONFIG.API_KEYS.Perplexity}`,
+          },
+        }
+      );
+
+      const { data } = response;
+
+      // Extract response content and calculate timing
+      return {
+        response: data?.choices[0]?.message?.content,
+        responseTime: Date.now() - startTime,
+      };
+    } catch (error) {
+      // Handle API errors with detailed error information
+      if (axios.isAxiosError(error)) {
+        const status = error.response?.status;
+        const message = error.response?.data?.error?.message || error.message;
+        throw new Error(`Perplexity API error (${status}): ${message}`);
+      }
+      throw new Error(
+        `Perplexity API error: ${
           error instanceof Error ? error.message : "Unknown error"
         }`
       );

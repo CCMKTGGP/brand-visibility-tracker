@@ -20,11 +20,13 @@ export interface AIConfiguration {
     ChatGPT: string | undefined;
     Claude: string | undefined;
     Gemini: string | undefined;
+    Perplexity: string | undefined;
   };
   readonly AI_ENDPOINTS: {
     ChatGPT: string;
     Claude: string;
     Gemini: string;
+    Perplexity: string;
   };
 }
 
@@ -131,11 +133,13 @@ export interface LLMConfiguration {
     ChatGPT: string | undefined;
     Claude: string | undefined;
     Gemini: string | undefined;
+    Perplexity: string | undefined;
   };
   readonly AI_ENDPOINTS: {
     ChatGPT: string;
     Claude: string;
     Gemini: string;
+    Perplexity: string;
   };
 }
 

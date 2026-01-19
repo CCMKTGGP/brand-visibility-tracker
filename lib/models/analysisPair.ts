@@ -6,7 +6,7 @@ interface IAnalysisPair {
   analysis_id: string; // Reference to the main analysis
   brand_id: Types.ObjectId;
   user_id: Types.ObjectId;
-  model: "ChatGPT" | "Claude" | "Gemini";
+  model: "ChatGPT" | "Claude" | "Gemini" | "Perplexity";
   stage: "TOFU" | "MOFU" | "BOFU" | "EVFU";
   status: "pending" | "running" | "completed" | "failed";
   started_at?: Date;
@@ -37,7 +37,7 @@ const AnalysisPairSchema = new Schema<IAnalysisPair>(
     },
     model: {
       type: String,
-      enum: ["ChatGPT", "Claude", "Gemini"],
+      enum: ["ChatGPT", "Claude", "Gemini", "Perplexity"],
       required: true,
       index: true,
     },

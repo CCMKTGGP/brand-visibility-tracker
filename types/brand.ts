@@ -54,6 +54,7 @@ export interface DashboardBrand {
     ChatGPT: { score: number; prompts: number };
     Claude: { score: number; prompts: number };
     Gemini: { score: number; prompts: number };
+    Perplexity: { score: number; prompts: number };
   };
 }
 
@@ -64,7 +65,7 @@ export type AnalysisStage = "TOFU" | "MOFU" | "BOFU" | "EVFU";
 export type SentimentTrend = "up" | "down" | "neutral";
 
 // AI Models supported
-export type AIModel = "ChatGPT" | "Claude" | "Gemini";
+export type AIModel = "ChatGPT" | "Claude" | "Gemini" | "Perplexity";
 
 // Model performance data
 export interface ModelPerformanceData {
@@ -184,6 +185,7 @@ export interface DashboardResponse {
     ChatGPT: ModelPerformanceData;
     Claude: ModelPerformanceData;
     Gemini: ModelPerformanceData;
+    Perplexity: ModelPerformanceData;
   };
   weeklyData: {
     labels: string[];

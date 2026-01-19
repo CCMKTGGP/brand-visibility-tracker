@@ -23,7 +23,7 @@ const LogsQuerySchema = z.object({
   userId: z.string().min(1, "User ID is required"),
   selectedAnalysisId: z.string().optional(), // analysis_id to filter by specific analysis run
   model: z
-    .enum(["all", "ChatGPT", "Claude", "Gemini"])
+    .enum(["all", "ChatGPT", "Claude", "Gemini", "Perplexity"])
     .optional()
     .default("all"),
   stage: z
@@ -44,7 +44,7 @@ const LogsQuerySchema = z.object({
 
 const TriggerAnalysisSchema = z.object({
   userId: z.string().min(1, "User ID is required"),
-  models: z.array(z.enum(["ChatGPT", "Claude", "Gemini"])).optional(),
+  models: z.array(z.enum(["ChatGPT", "Claude", "Gemini", "Perplexity"])).optional(),
   stages: z.array(z.enum(["TOFU", "MOFU", "BOFU", "EVFU"])).optional(),
 });
 
@@ -578,6 +578,7 @@ export const POST = async (
       "ChatGPT",
       "Claude",
       "Gemini",
+      "Perplexity",
     ];
     const stagesToAnalyze: AnalysisStage[] = stages || [
       "TOFU",

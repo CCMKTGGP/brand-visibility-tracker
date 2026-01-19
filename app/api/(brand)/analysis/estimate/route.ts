@@ -5,7 +5,7 @@ import { CreditService } from "@/lib/services/creditService";
 
 const EstimateAnalysisSchema = z.object({
   models: z
-    .array(z.enum(["ChatGPT", "Claude", "Gemini"]))
+    .array(z.enum(["ChatGPT", "Claude", "Gemini", "Perplexity"]))
     .min(1, "At least one model is required"),
   userId: z.string().min(1, "User ID is required"),
 });

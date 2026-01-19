@@ -59,7 +59,7 @@ export interface CreditPurchaseOption {
 }
 
 // AI Model selection for analysis
-export type AIModel = "ChatGPT" | "Claude" | "Gemini";
+export type AIModel = "ChatGPT" | "Claude" | "Gemini" | "Perplexity";
 export type AnalysisStage = "TOFU" | "MOFU" | "BOFU" | "EVFU";
 
 export interface AnalysisOptions {

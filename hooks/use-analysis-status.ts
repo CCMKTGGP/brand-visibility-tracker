@@ -11,7 +11,7 @@ interface AnalysisProgress {
 interface CurrentAnalysis {
   analysisId: string;
   status: "running" | "completed" | "failed" | "cancelled";
-  models: ("ChatGPT" | "Claude" | "Gemini")[];
+  models: ("ChatGPT" | "Claude" | "Gemini" | "Perplexity")[];
   stages: ("TOFU" | "MOFU" | "BOFU" | "EVFU")[];
   startedAt: string;
   progress: AnalysisProgress;
@@ -20,7 +20,7 @@ interface CurrentAnalysis {
 interface RecentAnalysis {
   analysisId: string;
   status: "running" | "completed" | "failed" | "cancelled";
-  models: ("ChatGPT" | "Claude" | "Gemini")[];
+  models: ("ChatGPT" | "Claude" | "Gemini" | "Perplexity")[];
   stages: ("TOFU" | "MOFU" | "BOFU" | "EVFU")[];
   startedAt: string;
   completedAt: string;

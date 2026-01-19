@@ -12,7 +12,7 @@ const DashboardQuerySchema = z.object({
   userId: z.string().min(1, "User ID is required"),
   selectedAnalysisId: z.string().optional(), // analysis_id to filter by specific analysis run
   model: z
-    .enum(["all", "ChatGPT", "Claude", "Gemini"])
+    .enum(["all", "ChatGPT", "Claude", "Gemini", "Perplexity"])
     .optional()
     .default("all"),
   stage: z
@@ -276,6 +276,7 @@ export const GET = async (
       ChatGPT: { score: 0, prompts: 0 },
       Claude: { score: 0, prompts: 0 },
       Gemini: { score: 0, prompts: 0 },
+      Perplexity: { score: 0, prompts: 0 },
     };
     (currentData?.modelPerformance || []).forEach((model: any) => {
       if (model._id in modelPerformance) {
@@ -319,7 +320,7 @@ export const GET = async (
 
     // Process heatmap data with trend calculation
     const stages = ["TOFU", "MOFU", "BOFU", "EVFU"];
-    const models = ["ChatGPT", "Claude", "Gemini"];
+    const models = ["ChatGPT", "Claude", "Gemini", "Perplexity"];
 
     const heatmapData = {
       stages,
@@ -469,7 +470,7 @@ export const GET = async (
         selectedAnalysisId: selectedAnalysisId || null,
         model,
         stage,
-        availableModels: ["all", "ChatGPT", "Claude", "Gemini"],
+        availableModels: ["all", "ChatGPT", "Claude", "Gemini", "Perplexity"],
         availableStages: ["all", "TOFU", "MOFU", "BOFU", "EVFU"],
       },
     };

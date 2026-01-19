@@ -7,7 +7,7 @@ interface IAnalysisStatus {
   user_id: Types.ObjectId;
   analysis_id: string;
   status: "running" | "completed" | "failed" | "cancelled";
-  models: ("ChatGPT" | "Claude" | "Gemini")[];
+  models: ("ChatGPT" | "Claude" | "Gemini" | "Perplexity")[];
   stages: ("TOFU" | "MOFU" | "BOFU" | "EVFU")[];
   started_at: Date;
   completed_at?: Date;
@@ -50,7 +50,7 @@ const AnalysisStatusSchema = new Schema<IAnalysisStatus>(
     models: [
       {
         type: String,
-        enum: ["ChatGPT", "Claude", "Gemini"],
+        enum: ["ChatGPT", "Claude", "Gemini", "Perplexity"],
         required: true,
       },
     ],

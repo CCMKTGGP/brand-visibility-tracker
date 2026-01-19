@@ -53,6 +53,12 @@ const AI_MODELS = [
     description: "Google's multimodal AI model",
     color: "bg-blue-100 text-blue-700",
   },
+  {
+    id: "Perplexity",
+    name: "Perplexity",
+    description: "Perplexity's AI-powered search and answer engine",
+    color: "bg-orange-100 text-orange-700",
+  },
 ];
 
 export function AnalysisModelSelector({
@@ -65,6 +71,7 @@ export function AnalysisModelSelector({
     "ChatGPT",
     "Claude",
     "Gemini",
+    "Perplexity",
   ]);
   const [estimate, setEstimate] = useState<AnalysisEstimate | null>(null);
   const [loading, setLoading] = useState(false);
