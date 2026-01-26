@@ -39,6 +39,7 @@ import { AnalysisModelSelector } from "@/components/analysis-model-selector";
 import { useAnalysisStatus } from "@/hooks/use-analysis-status";
 import { isUserOwner, isUserViewer } from "@/utils/checkUserRole";
 import CompetitorTreemap from "@/components/competitor-treemap";
+import BrandVisibilityChartWrapper from "@/components/brand-visibility-chart-wrapper";
 
 // Register Chart.js components
 ChartJS.register(ArcElement, Tooltip, Legend);
@@ -794,6 +795,11 @@ const DashboardPage = ({
           />
         </div>
       )}
+
+      {/* Brand Visibility Chart */}
+      <div className="mb-6">
+        <BrandVisibilityChartWrapper userId={userId} brandId={brandId} />
+      </div>
 
       {/* Competitor Analysis Section */}
       <div className="mb-6">
