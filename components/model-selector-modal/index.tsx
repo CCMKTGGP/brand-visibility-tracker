@@ -72,11 +72,7 @@ const ModelSelectorModal: React.FC<ModelSelectorModalProps> = ({
                     onCheckedChange={() => handleModelToggle(model)}
                     disabled={isSelected && selectedModels.length === 1}
                   />
-                  <label
-                    htmlFor={model}
-                    className="flex-1 cursor-pointer"
-                    onClick={() => handleModelToggle(model)}
-                  >
+                  <label htmlFor={model} className="flex-1 cursor-pointer">
                     <div className="flex items-center justify-between w-full">
                       <span className="text-sm font-medium text-gray-900 dark:text-white">
                         {model}

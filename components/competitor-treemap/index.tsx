@@ -15,7 +15,9 @@ import { Badge } from "@/components/ui/badge";
 import Loading from "@/components/loading";
 import { fetchData } from "@/utils/fetch";
 import { Button } from "../ui/button";
-import { BarChart3, Play, TrendingUp } from "lucide-react";
+import { BarChart3, Play, TrendingUp, Filter } from "lucide-react";
+import ModelSelectorModal from "@/components/model-selector-modal";
+import { models } from "@/constants/dashboard";
 
 // Register Chart.js components
 ChartJS.register(
@@ -118,6 +120,10 @@ const CompetitorTreemap: React.FC<CompetitorTreemapProps> = ({
   const [activeView, setActiveView] = useState<"competitors" | "domains">(
     "competitors"
   );
+  
+  // Model selection state - default to all models
+  const [selectedModels, setSelectedModels] = useState<string[]>([...models]);
+  const [modelSelectorOpen, setModelSelectorOpen] = useState(false);
 
   // Fetch treemap data
   useEffect(() => {
@@ -125,8 +131,18 @@ const CompetitorTreemap: React.FC<CompetitorTreemapProps> = ({
       try {
         setLoading(true);
         setError("");
+        
+        // Build query parameters
+        const params = new URLSearchParams({
+          userId,
+        });
+        
+        if (selectedModels.length > 0) {
+          params.append("models", selectedModels.join(","));
+        }
+        
         const response = await fetchData(
-          `/api/brand/${brandId}/treemap?userId=${userId}`
+          `/api/brand/${brandId}/treemap?${params.toString()}`
         );
         const { data } = response;
 
@@ -217,7 +233,7 @@ const CompetitorTreemap: React.FC<CompetitorTreemapProps> = ({
     if (brandId && userId) {
       fetchTreemapData();
     }
-  }, [brandId, userId]);
+  }, [brandId, userId, selectedModels]);
 
   // Optimized color calculation functions
   const getScoreColorByMentions = useCallback(
@@ -619,12 +635,26 @@ const CompetitorTreemap: React.FC<CompetitorTreemapProps> = ({
       ? !data.competitors?.length
       : !data.domains?.length;
 
+  const handleModelsChange = (models: string[]) => {
+    setSelectedModels(models);
+    setModelSelectorOpen(false);
+  };
+
   return (
     <Card className={className}>
       <CardHeader>
         <div className="flex items-center justify-between">
           <CardTitle>Competitor Analysis</CardTitle>
           <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setModelSelectorOpen(true)}
+              className="flex items-center gap-2"
+            >
+              <Filter className="w-4 h-4" />
+              Models ({selectedModels.length})
+            </Button>
             <Button
               variant={activeView === "competitors" ? "default" : "outline"}
               onClick={() => setActiveView("competitors")}
@@ -757,6 +787,14 @@ const CompetitorTreemap: React.FC<CompetitorTreemapProps> = ({
           </div>
         </div>
       </CardContent>
+
+      {/* Model Selector Modal */}
+      <ModelSelectorModal
+        open={modelSelectorOpen}
+        onOpenChange={setModelSelectorOpen}
+        selectedModels={selectedModels}
+        onSelectionChange={handleModelsChange}
+      />
     </Card>
   );
 };
