@@ -10,6 +10,7 @@ import { RouteParams, BrandParams } from "@/types/api";
 
 const TreemapQuerySchema = z.object({
   userId: z.string().min(1, "User ID is required"),
+  models: z.string().optional(), // Comma-separated list of models
 });
 
 // Treemap data API for competitor analysis visualization
@@ -41,6 +42,7 @@ export const GET = async (
     // Parse query parameters
     const queryParams = {
       userId: url.searchParams.get("userId"),
+      models: url.searchParams.get("models") || undefined,
     };
 
     const parse = TreemapQuerySchema.safeParse(queryParams);
@@ -54,7 +56,12 @@ export const GET = async (
       );
     }
 
-    const { userId } = parse.data;
+    const { userId, models } = parse.data;
+
+    // Parse models filter if provided
+    const selectedModels = models
+      ? models.split(",").map((m) => m.trim())
+      : undefined;
 
     // Establish database connection
     await connect();
@@ -83,13 +90,20 @@ export const GET = async (
     }
 
     // Aggregation pipeline to extract and process competitor and domain data
+    const matchStage: any = {
+      brand_id: new Types.ObjectId(brandId),
+      status: "success",
+    };
+
+    // Add model filter if specified
+    if (selectedModels && selectedModels.length > 0) {
+      matchStage.model = { $in: selectedModels };
+    }
+
     const treemapAggregation = await MultiPromptAnalysis.aggregate([
       // Stage 1: Match brand analyses
       {
-        $match: {
-          brand_id: new Types.ObjectId(brandId),
-          status: "success",
-        },
+        $match: matchStage,
       },
 
       // Stage 2: Unwind prompt results to access competitors and domains
