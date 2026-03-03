@@ -186,7 +186,7 @@ const BrandLayout: React.FC<BrandLayoutProps> = ({ children }) => {
               >
                 <Link href={`/${userId}/brands`}>
                   <Image
-                    src="/logo.svg"
+                    src="/logo.png"
                     alt="Surfacemap.cc"
                     width={140}
                     height={140}

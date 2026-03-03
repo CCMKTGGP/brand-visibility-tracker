@@ -1,15 +1,7 @@
 "use client";
 import React, { useState, useEffect } from "react";
 import moment from "moment";
-import {
-  Filter,
-  Building2,
-  BarChart3,
-  Activity,
-  Target,
-  Play,
-  Clock,
-} from "lucide-react";
+import { Filter, Building2, Activity, Target, Play, Clock } from "lucide-react";
 import { Chart as ChartJS, ArcElement, Tooltip, Legend } from "chart.js";
 import { Pie } from "react-chartjs-2";
 import {
@@ -584,6 +576,13 @@ const DashboardPage = ({
                     {moment(selectedBrand.metrics.lastUpdated).format("ll")}
                   </span>
                 </span>
+                <span>•</span>
+                <span>
+                  Total Analyses:{" "}
+                  <span className="font-medium text-foreground">
+                    {dashboardData.currentPeriodMetrics.totalAnalyses}
+                  </span>
+                </span>
               </div>
             </div>
           </div>
@@ -731,14 +730,14 @@ const DashboardPage = ({
 
       {/* Key Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <MetricCard
+        {/* <MetricCard
           title="Total Analyses"
           value={dashboardData.currentPeriodMetrics.totalAnalyses}
           subtitle={`${
             dashboardData.currentPeriodMetrics.totalPrompts || "N/A"
           } prompts processed`}
           icon={<BarChart3 className="w-5 h-5 text-primary" />}
-        />
+        /> */}
         {/* <MetricCard
           title="Weighted Score"
           value={`${Math.round(

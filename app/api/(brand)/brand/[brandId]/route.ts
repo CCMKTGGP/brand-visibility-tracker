@@ -6,6 +6,7 @@ import { authMiddleware } from "@/middlewares/apis/authMiddleware";
 import { z } from "zod";
 
 import { RouteParams, BrandParams } from "@/types/api";
+import MultiPromptAnalysis from "@/lib/models/multiPromptAnalysis";
 
 const UpdateBrandBody = z.object({
   user_id: z.string().min(1, "User ID is required"),
@@ -77,9 +78,16 @@ export const GET = async (
       }
     }
 
+    // Check if the brand has run any analysis
+    const hasRunAnalysis = await MultiPromptAnalysis.exists({
+      brand_id: new Types.ObjectId(brandId),
+      status: "success",
+    });
+
     const responseData = {
       ...brand.toObject(),
       invitedBy: invitedByUser || brand.ownerId, // Use invited_by if available, fallback to owner
+      hasRunAnalysis: !!hasRunAnalysis, // Convert to boolean
     };
 
     return new NextResponse(
