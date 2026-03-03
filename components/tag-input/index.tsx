@@ -6,7 +6,12 @@ import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { TagInputProps } from "@/types/ui";
 
-export function TagInput({ value, onChange, placeholder }: TagInputProps) {
+export function TagInput({
+  value,
+  onChange,
+  placeholder,
+  disabled,
+}: TagInputProps) {
   const [inputValue, setInputValue] = useState("");
 
   const handleAdd = () => {
@@ -35,18 +40,21 @@ export function TagInput({ value, onChange, placeholder }: TagInputProps) {
           e.key === "Enter" && (e.preventDefault(), handleAdd())
         }
         placeholder={placeholder}
+        disabled={disabled}
       />
       <div className="flex flex-wrap gap-2">
         {value.map((item, index) => (
           <Badge key={index} variant="secondary">
             {item}
-            <button
-              type="button"
-              onClick={() => handleRemove(index)}
-              className="ml-1"
-            >
-              <X className="w-3 h-3" />
-            </button>
+            {!disabled && (
+              <button
+                type="button"
+                onClick={() => handleRemove(index)}
+                className="ml-1"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            )}
           </Badge>
         ))}
       </div>

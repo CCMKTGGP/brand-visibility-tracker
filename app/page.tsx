@@ -65,9 +65,9 @@ export default function Home() {
     },
     {
       icon: <Zap className="w-6 h-6" />,
-      title: "Automated Monitoring",
+      title: "Domain Citations",
       description:
-        "Set up automated prompt executions to continuously monitor your brand visibility.",
+        "Find out where the AIs are learning about your category and your competitors so you can focus your efforts on those sites.",
     },
   ];
 
@@ -360,7 +360,7 @@ export default function Home() {
       {/* Stats Section */}
       <section className="py-24">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-8 text-center">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 text-center">
             <div>
               <div className="text-4xl font-bold text-accent dark:text-accent mb-2">
                 500+
@@ -377,14 +377,14 @@ export default function Home() {
                 Prompts Analyzed
               </div>
             </div>
-            <div>
+            {/* <div>
               <div className="text-4xl font-bold text-accent dark:text-accent mb-2">
                 98%
               </div>
               <div className="text-gray-600 dark:text-gray-300">
                 Accuracy Rate
               </div>
-            </div>
+            </div> */}
             <div>
               <div className="text-4xl font-bold text-accent dark:text-accent mb-2">
                 24/7
@@ -441,7 +441,7 @@ export default function Home() {
       </section>
 
       {/* Pricing Section */}
-      <section id="pricing" className="py-24">
+      {/* <section id="pricing" className="py-24">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <h2 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-4">
@@ -508,7 +508,7 @@ export default function Home() {
             ))}
           </div>
         </div>
-      </section>
+      </section> */}
 
       {/* CTA Section */}
       <section className="py-24 bg-accent">

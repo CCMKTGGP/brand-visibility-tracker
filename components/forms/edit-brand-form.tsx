@@ -56,6 +56,7 @@ export function EditBrandForm({
   const [deleting, setDeleting] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [brandName, setBrandName] = useState("");
+  const [hasRunAnalysis, setHasRunAnalysis] = useState(false);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -76,6 +77,9 @@ export function EditBrandForm({
       try {
         const response = await fetchData(`/api/brand/${brandId}`);
         const brandData = response.data;
+
+        // Check if brand has run any analysis
+        setHasRunAnalysis(brandData.hasRunAnalysis || false);
 
         form.reset({
           name: brandData.name || "",
@@ -164,6 +168,27 @@ export function EditBrandForm({
 
   return (
     <div className="max-w-2xl mx-auto py-8">
+      {hasRunAnalysis && (
+        <>
+          <div className="mb-6 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+            <div className="flex items-start gap-3">
+              <AlertCircle className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+              <div>
+                <h3 className="text-sm font-semibold text-blue-900 dark:text-blue-300">
+                  Editing is not allowed
+                </h3>
+                <p className="text-sm text-blue-700 dark:text-blue-400 mt-1">
+                  This brand has already run analysis. Editing brand details is
+                  disabled to prevent skewing the results. If you need to make
+                  changes, you can clone the brand and make changes to the
+                  cloned brand.
+                </p>
+              </div>
+            </div>
+          </div>
+          <hr className="mb-8" />
+        </>
+      )}
       <Form {...form}>
         <form className="space-y-8">
           <div className="space-y-4">
@@ -174,7 +199,11 @@ export function EditBrandForm({
                 <FormItem>
                   <FormLabel>Brand Name *</FormLabel>
                   <FormControl>
-                    <Input placeholder="Enter brand name" {...field} />
+                    <Input
+                      disabled={hasRunAnalysis}
+                      placeholder="Enter brand name"
+                      {...field}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -189,7 +218,11 @@ export function EditBrandForm({
                   <FormItem>
                     <FormLabel>Category</FormLabel>
                     <FormControl>
-                      <Input placeholder="Enter category" {...field} />
+                      <Input
+                        disabled={hasRunAnalysis}
+                        placeholder="Enter category"
+                        {...field}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -203,7 +236,11 @@ export function EditBrandForm({
                   <FormItem>
                     <FormLabel>Region</FormLabel>
                     <FormControl>
-                      <Input placeholder="Enter region" {...field} />
+                      <Input
+                        disabled={hasRunAnalysis}
+                        placeholder="Enter region"
+                        {...field}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -221,6 +258,7 @@ export function EditBrandForm({
                     value={field.value || []}
                     onChange={field.onChange}
                     placeholder="Press Enter to add target audience"
+                    disabled={hasRunAnalysis}
                   />
                 </FormItem>
               )}
@@ -236,6 +274,7 @@ export function EditBrandForm({
                     value={field.value || []}
                     onChange={field.onChange}
                     placeholder="Press Enter to add competitors"
+                    disabled={hasRunAnalysis}
                   />
                 </FormItem>
               )}
@@ -252,6 +291,7 @@ export function EditBrandForm({
                       placeholder="Describe your brand's use case"
                       {...field}
                       rows={4}
+                      disabled={hasRunAnalysis}
                     />
                   </FormControl>
                 </FormItem>
@@ -268,6 +308,7 @@ export function EditBrandForm({
                     value={field.value || []}
                     onChange={field.onChange}
                     placeholder="Press Enter to add key features"
+                    disabled={hasRunAnalysis}
                   />
                 </FormItem>
               )}
@@ -278,24 +319,26 @@ export function EditBrandForm({
             <ApiError message={error} setMessage={(value) => setError(value)} />
           )}
 
-          {/* Navigation */}
-          <div className="flex justify-center">
-            <Button
-              type="button"
-              className="w-[200px]"
-              onClick={() => {
-                handleUpdateBrand(form.getValues());
-              }}
-              variant={saving ? "outline" : "default"}
-              disabled={!form.watch("name") || saving}
-            >
-              {saving ? (
-                <Loading message="Updating brand..." />
-              ) : (
-                "Update Brand"
-              )}
-            </Button>
-          </div>
+          {/* Update Button - Only show when brand hasn't run analysis */}
+          {!hasRunAnalysis && (
+            <div className="flex justify-center">
+              <Button
+                type="button"
+                className="w-[200px]"
+                onClick={() => {
+                  handleUpdateBrand(form.getValues());
+                }}
+                variant={saving ? "outline" : "default"}
+                disabled={!form.watch("name") || saving}
+              >
+                {saving ? (
+                  <Loading message="Updating brand..." />
+                ) : (
+                  "Update Brand"
+                )}
+              </Button>
+            </div>
+          )}
 
           <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 mt-8">
             <div className="flex items-center gap-3 mb-4">

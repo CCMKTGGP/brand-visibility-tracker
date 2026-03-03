@@ -310,7 +310,7 @@ const BrandListContent = ({ userId }: { userId: string }) => {
             href={`/${userId}/brands/${brand._id}/view-logs`}
             className="font-bold text-accent dark:text-accent hover:text-accent/80 dark:hover:text-accent/80 transition-colors"
           >
-            View Logs
+            View AI Responses
           </Link>
           <span className="text-gray-500 dark:text-gray-400">
             Created {formatDate(brand.createdAt)}

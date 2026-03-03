@@ -10,7 +10,7 @@ import {
   Minus,
   Download,
 } from "lucide-react";
-import { generateExportFilename } from "@/utils/exportUtils";
+import { generateFunnelExportFilename } from "@/utils/exportUtils";
 import {
   Tooltip,
   TooltipContent,
@@ -81,9 +81,10 @@ const FunnelHeatmap: React.FC<FunnelHeatmapProps> = ({
       .toPng(heatmapRef.current)
       .then((dataUrl) => {
         anchorRef.current!.href = dataUrl;
-        anchorRef.current!.download = generateExportFilename(
-          "heatmap",
-          brandDetails?.name
+        anchorRef.current!.download = generateFunnelExportFilename(
+          brandDetails?.name,
+          brandDetails?.use_case,
+          brandDetails?.region
         );
         anchorRef.current!.click();
       })
@@ -195,7 +196,11 @@ const FunnelHeatmap: React.FC<FunnelHeatmapProps> = ({
           <a
             ref={anchorRef}
             href="#"
-            download={generateExportFilename("heatmap", brandDetails?.name)}
+            download={generateFunnelExportFilename(
+              brandDetails?.name,
+              brandDetails?.use_case,
+              brandDetails?.region
+            )}
             className="hidden"
           />
           <TooltipProvider>
@@ -465,9 +470,9 @@ const FunnelHeatmap: React.FC<FunnelHeatmapProps> = ({
                             </span>
                             <Minus className="w-3 h-3 text-black" />
                           </div>
-                          <div className="text-xs opacity-90">
+                          {/* <div className="text-xs opacity-90">
                             Score: {cellData.score}%
-                          </div>
+                          </div> */}
                           <div className="text-xs opacity-75 mt-1">
                             {cellData.analyses} analyses
                           </div>
