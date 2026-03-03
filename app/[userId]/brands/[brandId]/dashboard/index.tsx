@@ -1,15 +1,7 @@
 "use client";
 import React, { useState, useEffect } from "react";
 import moment from "moment";
-import {
-  Filter,
-  Building2,
-  BarChart3,
-  Activity,
-  Target,
-  Play,
-  Clock,
-} from "lucide-react";
+import { Filter, Building2, Activity, Target, Play, Clock } from "lucide-react";
 import { Chart as ChartJS, ArcElement, Tooltip, Legend } from "chart.js";
 import { Pie } from "react-chartjs-2";
 import {

@@ -11,7 +11,6 @@ import {
   Zap,
   Users,
   TrendingUp,
-  CheckCircle,
   ArrowRight,
   Star,
   Eye,
@@ -98,57 +97,57 @@ export default function Home() {
     },
   ];
 
-  const pricingPlans = [
-    {
-      name: "Starter",
-      price: "$29",
-      period: "/month",
-      description: "Perfect for small businesses getting started",
-      features: [
-        "1 Brand tracking",
-        "Basic analytics",
-        "3 AI models",
-        "Email support",
-        "Monthly reports",
-      ],
-      cta: "Start Free Trial",
-      popular: false,
-    },
-    {
-      name: "Professional",
-      price: "$99",
-      period: "/month",
-      description: "Ideal for growing companies",
-      features: [
-        "5 Brands tracking",
-        "Advanced analytics",
-        "All AI models",
-        "Priority support",
-        "Real-time alerts",
-        "Team collaboration",
-        "Custom reports",
-      ],
-      cta: "Start Free Trial",
-      popular: true,
-    },
-    {
-      name: "Enterprise",
-      price: "Custom",
-      period: "",
-      description: "For large organizations",
-      features: [
-        "Unlimited brands",
-        "Custom integrations",
-        "Dedicated support",
-        "Advanced security",
-        "Custom AI models",
-        "White-label options",
-        "SLA guarantee",
-      ],
-      cta: "Contact Sales",
-      popular: false,
-    },
-  ];
+  // const pricingPlans = [
+  //   {
+  //     name: "Starter",
+  //     price: "$29",
+  //     period: "/month",
+  //     description: "Perfect for small businesses getting started",
+  //     features: [
+  //       "1 Brand tracking",
+  //       "Basic analytics",
+  //       "3 AI models",
+  //       "Email support",
+  //       "Monthly reports",
+  //     ],
+  //     cta: "Start Free Trial",
+  //     popular: false,
+  //   },
+  //   {
+  //     name: "Professional",
+  //     price: "$99",
+  //     period: "/month",
+  //     description: "Ideal for growing companies",
+  //     features: [
+  //       "5 Brands tracking",
+  //       "Advanced analytics",
+  //       "All AI models",
+  //       "Priority support",
+  //       "Real-time alerts",
+  //       "Team collaboration",
+  //       "Custom reports",
+  //     ],
+  //     cta: "Start Free Trial",
+  //     popular: true,
+  //   },
+  //   {
+  //     name: "Enterprise",
+  //     price: "Custom",
+  //     period: "",
+  //     description: "For large organizations",
+  //     features: [
+  //       "Unlimited brands",
+  //       "Custom integrations",
+  //       "Dedicated support",
+  //       "Advanced security",
+  //       "Custom AI models",
+  //       "White-label options",
+  //       "SLA guarantee",
+  //     ],
+  //     cta: "Contact Sales",
+  //     popular: false,
+  //   },
+  // ];
 
   return (
     <div className="min-h-screen bg-white dark:bg-gray-900">
