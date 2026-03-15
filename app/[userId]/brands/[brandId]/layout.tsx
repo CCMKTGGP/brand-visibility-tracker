@@ -69,7 +69,7 @@ const BrandLayout: React.FC<BrandLayoutProps> = ({ children }) => {
         setError(
           `Error fetching brand name - ${
             error instanceof Error ? error.message : "Unknown error"
-          }`
+          }`,
         );
       } finally {
         setLoading(false);
@@ -85,7 +85,7 @@ const BrandLayout: React.FC<BrandLayoutProps> = ({ children }) => {
     async function fetchUserRole() {
       try {
         const response = await fetchData(
-          `/api/users/${userId}/fetch-role?brandId=${brandId}`
+          `/api/users/${userId}/fetch-role?brandId=${brandId}`,
         );
         const { data } = response;
         setUser({ ...user, role: data.role });
@@ -93,7 +93,7 @@ const BrandLayout: React.FC<BrandLayoutProps> = ({ children }) => {
         setError(
           `Error fetching user role - ${
             error instanceof Error ? error.message : "Unknown error"
-          }`
+          }`,
         );
       } finally {
         setLoading(false);
@@ -116,7 +116,7 @@ const BrandLayout: React.FC<BrandLayoutProps> = ({ children }) => {
       setError(
         `Logout Failed - ${
           error instanceof Error ? error.message : "Unknown error"
-        }`
+        }`,
       );
     } finally {
       setLogoutLoading(false);
@@ -139,8 +139,8 @@ const BrandLayout: React.FC<BrandLayoutProps> = ({ children }) => {
       icon: BarChart3,
     },
     {
-      title: "Logs",
-      url: `/${userId}/brands/${brandId}/view-logs`,
+      title: "AI Responses",
+      url: `/${userId}/brands/${brandId}/ai-responses`,
       icon: FileText,
     },
     {
@@ -167,7 +167,7 @@ const BrandLayout: React.FC<BrandLayoutProps> = ({ children }) => {
     ? [
         {
           title: "Brand Settings",
-          url: `/${userId}/brands/${brandId}/edit-brand`,
+          url: `/${userId}/brands/${brandId}/brand-settings`,
           icon: Settings,
         },
       ]

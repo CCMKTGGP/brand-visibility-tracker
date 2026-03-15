@@ -15,10 +15,10 @@ export default function EditBrand({
         {/* Header */}
         <div className="text-center my-8">
           <h1 className="text-3xl font-extrabold text-gray-900 dark:text-white">
-            Edit Brand
+            Brand Settings
           </h1>
           <p className="mt-2 text-lg text-gray-600 dark:text-gray-400">
-            Update your brand information and settings
+            View Brand Settings and Information
           </p>
         </div>
 

@@ -27,7 +27,7 @@ ChartJS.register(
   Tooltip,
   Legend,
   TreemapController,
-  TreemapElement
+  TreemapElement,
 );
 
 interface CompetitorData {
@@ -118,9 +118,9 @@ const CompetitorTreemap: React.FC<CompetitorTreemapProps> = ({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>("");
   const [activeView, setActiveView] = useState<"competitors" | "domains">(
-    "competitors"
+    "competitors",
   );
-  
+
   // Model selection state - default to all models
   const [selectedModels, setSelectedModels] = useState<string[]>([...models]);
   const [modelSelectorOpen, setModelSelectorOpen] = useState(false);
@@ -131,18 +131,18 @@ const CompetitorTreemap: React.FC<CompetitorTreemapProps> = ({
       try {
         setLoading(true);
         setError("");
-        
+
         // Build query parameters
         const params = new URLSearchParams({
           userId,
         });
-        
+
         if (selectedModels.length > 0) {
           params.append("models", selectedModels.join(","));
         }
-        
+
         const response = await fetchData(
-          `/api/brand/${brandId}/treemap?${params.toString()}`
+          `/api/brand/${brandId}/treemap?${params.toString()}`,
         );
         const { data } = response;
 
@@ -187,18 +187,18 @@ const CompetitorTreemap: React.FC<CompetitorTreemapProps> = ({
           (comp) => ({
             ...comp,
             confidence_score: Math.round(
-              comp.confidence_score / (comp._totalVariants || 1)
+              comp.confidence_score / (comp._totalVariants || 1),
             ),
             source_domains: Array.from(comp.source_domains),
             _totalVariants: undefined, // Remove helper property
-          })
+          }),
         );
 
         // Sort competitors by mention count (descending) and limit to top 10
         data.competitors = allCompetitors
           .sort(
             (a: CompetitorData, b: CompetitorData) =>
-              b.mention_count - a.mention_count
+              b.mention_count - a.mention_count,
           )
           .slice(0, CHART_CONFIG.maxCompetitors);
 
@@ -207,7 +207,7 @@ const CompetitorTreemap: React.FC<CompetitorTreemapProps> = ({
           data.domains = data.domains
             .sort(
               (a: DomainData, b: DomainData) =>
-                b.citation_count - a.citation_count
+                b.citation_count - a.citation_count,
             )
             .slice(0, CHART_CONFIG.maxDomains);
         }
@@ -216,7 +216,7 @@ const CompetitorTreemap: React.FC<CompetitorTreemapProps> = ({
         data.totalCompetitors = allCompetitors.length;
         data.totalMentions = allCompetitors.reduce(
           (sum, comp) => sum + comp.mention_count,
-          0
+          0,
         );
 
         // Calculate filtered totals for display
@@ -249,7 +249,7 @@ const CompetitorTreemap: React.FC<CompetitorTreemapProps> = ({
       if (percentage <= 100) return COLOR_RANGES.EXCELLENT;
       return COLOR_RANGES.NO_DATA;
     },
-    []
+    [],
   );
 
   const getScoreColorByAuthority = useCallback((authorityScore: number) => {
@@ -267,10 +267,10 @@ const CompetitorTreemap: React.FC<CompetitorTreemapProps> = ({
     if (!data?.competitors || data.competitors.length === 0) return null;
 
     const maxMentions = Math.max(
-      ...data.competitors.map((c) => c.mention_count)
+      ...data.competitors.map((c) => c.mention_count),
     );
     const treeValues = data.competitors.map(
-      (competitor) => competitor.mention_count
+      (competitor) => competitor.mention_count,
     );
 
     const competitorLookup = data.competitors.reduce(
@@ -278,7 +278,7 @@ const CompetitorTreemap: React.FC<CompetitorTreemapProps> = ({
         acc[index] = competitor;
         return acc;
       },
-      {} as Record<number, (typeof data.competitors)[0]>
+      {} as Record<number, (typeof data.competitors)[0]>,
     );
 
     // Helper function to format competitor name for better display
@@ -334,7 +334,7 @@ const CompetitorTreemap: React.FC<CompetitorTreemapProps> = ({
               if (!competitor) return "";
               return formatCompetitorName(
                 competitor.name,
-                competitor.mention_count
+                competitor.mention_count,
               );
             },
             font: (ctx: any) => {
@@ -342,7 +342,7 @@ const CompetitorTreemap: React.FC<CompetitorTreemapProps> = ({
               const tileArea = ctx.parsed._custom || 100;
               const dynamicSize = Math.max(
                 10,
-                Math.min(14, Math.floor(Math.sqrt(tileArea) / 12))
+                Math.min(14, Math.floor(Math.sqrt(tileArea) / 12)),
               );
               return {
                 size: dynamicSize,
@@ -433,8 +433,8 @@ const CompetitorTreemap: React.FC<CompetitorTreemapProps> = ({
                 8,
                 Math.min(
                   CHART_CONFIG.domainFontSize,
-                  Math.floor(Math.sqrt(tileArea) / 14)
-                )
+                  Math.floor(Math.sqrt(tileArea) / 14),
+                ),
               );
               return {
                 size: dynamicSize,
@@ -525,14 +525,20 @@ const CompetitorTreemap: React.FC<CompetitorTreemapProps> = ({
         },
       },
     }),
-    [activeView, competitorChartData, domainChartData]
+    [activeView, competitorChartData, domainChartData],
   );
+
+  const getActiveViewTitle = useCallback(() => {
+    return activeView === "competitors"
+      ? "Competitors Analysis"
+      : "Domains Analysis";
+  }, [activeView]);
 
   if (loading) {
     return (
       <Card className={className}>
         <CardHeader>
-          <CardTitle>Competitor Analysis</CardTitle>
+          <CardTitle>{getActiveViewTitle()}</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="h-64 flex items-center justify-center">
@@ -547,7 +553,7 @@ const CompetitorTreemap: React.FC<CompetitorTreemapProps> = ({
     return (
       <Card className={className}>
         <CardHeader>
-          <CardTitle>Competitor Analysis</CardTitle>
+          <CardTitle>{getActiveViewTitle()}</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="h-64 flex items-center justify-center text-muted-foreground">
@@ -562,7 +568,7 @@ const CompetitorTreemap: React.FC<CompetitorTreemapProps> = ({
     return (
       <Card className={className}>
         <CardHeader>
-          <CardTitle>Competitor Analysis</CardTitle>
+          <CardTitle>{getActiveViewTitle()}</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="h-80 flex flex-col items-center justify-center text-center space-y-6">
@@ -644,7 +650,7 @@ const CompetitorTreemap: React.FC<CompetitorTreemapProps> = ({
     <Card className={className}>
       <CardHeader>
         <div className="flex items-center justify-between">
-          <CardTitle>Competitor Analysis</CardTitle>
+          <CardTitle>{getActiveViewTitle()}</CardTitle>
           <div className="flex gap-2">
             <Button
               variant="outline"

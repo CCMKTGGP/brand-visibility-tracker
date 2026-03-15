@@ -71,7 +71,7 @@ const BrandListContent = ({ userId }: { userId: string }) => {
         setError(
           `Fetch Failed - ${
             error instanceof Error ? error.message : "Unknown error"
-          }`
+          }`,
         );
       } finally {
         setLoading(false);
@@ -93,7 +93,7 @@ const BrandListContent = ({ userId }: { userId: string }) => {
       toast.success("Brand deleted successfully!");
       // Remove the deleted brand from the local state
       setBrands((prevBrands) =>
-        prevBrands.filter((brand) => brand._id !== brandToDelete._id)
+        prevBrands.filter((brand) => brand._id !== brandToDelete._id),
       );
       setDeleteDialogOpen(false);
       setBrandToDelete(null);
@@ -103,7 +103,7 @@ const BrandListContent = ({ userId }: { userId: string }) => {
       toast.error(
         `Error deleting brand - ${
           error instanceof Error ? error.message : "Unknown error"
-        }`
+        }`,
       );
     } finally {
       setDeleting(false);
@@ -158,10 +158,10 @@ const BrandListContent = ({ userId }: { userId: string }) => {
             <DropdownMenuSeparator />
             <DropdownMenuItem
               onClick={() =>
-                router.push(`/${userId}/brands/${brand._id}/edit-brand`)
+                router.push(`/${userId}/brands/${brand._id}/brand-settings`)
               }
             >
-              Edit Brand
+              View Settings
             </DropdownMenuItem>
             <DropdownMenuItem
               onClick={() =>
@@ -173,7 +173,7 @@ const BrandListContent = ({ userId }: { userId: string }) => {
             <DropdownMenuItem
               onClick={() =>
                 router.push(
-                  `/${userId}/onboarding/clone-brand?brandId=${brand._id}`
+                  `/${userId}/onboarding/clone-brand?brandId=${brand._id}`,
                 )
               }
             >
@@ -307,7 +307,7 @@ const BrandListContent = ({ userId }: { userId: string }) => {
 
         <div className="flex justify-between text-sm">
           <Link
-            href={`/${userId}/brands/${brand._id}/view-logs`}
+            href={`/${userId}/brands/${brand._id}/ai-responses`}
             className="font-bold text-accent dark:text-accent hover:text-accent/80 dark:hover:text-accent/80 transition-colors"
           >
             View AI Responses

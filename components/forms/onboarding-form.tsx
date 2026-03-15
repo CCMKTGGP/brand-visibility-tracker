@@ -86,7 +86,7 @@ export default function OnboardingForm({
       setError(
         `Error in creating brand - ${
           error instanceof Error ? error.message : "Unknown error"
-        }`
+        }`,
       );
     } finally {
       setLoading(false);
@@ -199,6 +199,15 @@ export default function OnboardingForm({
                       {...field}
                     />
                   </FormControl>
+                  <FormDescription
+                    className={`text-xs text-gray-500 ${
+                      field.value && field.value.length > 0
+                        ? "mt-[-5px]"
+                        : "mt-[-10px]"
+                    }`}
+                  >
+                    Add a use case, product, or service your brand offers
+                  </FormDescription>
                 </FormItem>
               )}
             />
@@ -221,7 +230,7 @@ export default function OnboardingForm({
                         : "mt-[-10px]"
                     }`}
                   >
-                    Add multiple key features by hitting Enter/Return
+                    Add Multiple Features/Benefits by Hitting Enter/Return
                   </FormDescription>
                 </FormItem>
               )}

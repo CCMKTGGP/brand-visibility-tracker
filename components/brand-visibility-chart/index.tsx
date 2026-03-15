@@ -36,7 +36,7 @@ ChartJS.register(
   Title,
   Tooltip,
   Legend,
-  Filler
+  Filler,
 );
 
 export interface TimeSeriesDataPoint {
@@ -126,11 +126,11 @@ const BrandVisibilityChart: React.FC<BrandVisibilityChartProps> = ({
 
     // Sort data by date
     const sortedData = [...data].sort(
-      (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+      (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
     );
 
     const labels = sortedData.map((point) =>
-      format(new Date(point.date), "MMM dd, yyyy")
+      format(new Date(point.date), "MMM dd, yyyy"),
     );
 
     // Create datasets for each selected model
@@ -138,7 +138,7 @@ const BrandVisibilityChart: React.FC<BrandVisibilityChartProps> = ({
       .filter((model) => {
         // Check if model has any data points
         return sortedData.some(
-          (point) => point[model as keyof TimeSeriesDataPoint] !== undefined
+          (point) => point[model as keyof TimeSeriesDataPoint] !== undefined,
         );
       })
       .map((model) => {
@@ -172,6 +172,34 @@ const BrandVisibilityChart: React.FC<BrandVisibilityChartProps> = ({
     return {
       labels,
       datasets,
+    };
+  }, [data, selectedModels]);
+
+  // Compute a tight Y-axis range with padding so small deltas are visible
+  const yAxisBounds = useMemo(() => {
+    if (!data || data.length === 0) return { min: 0, max: 100 };
+
+    const allValues: number[] = [];
+    data.forEach((point) => {
+      selectedModels.forEach((model) => {
+        const value = point[model as keyof TimeSeriesDataPoint];
+        if (typeof value === "number") {
+          allValues.push(value);
+        }
+      });
+    });
+
+    if (allValues.length === 0) return { min: 0, max: 100 };
+
+    const dataMin = Math.min(...allValues);
+    const dataMax = Math.max(...allValues);
+    const range = dataMax - dataMin;
+    // Pad by 20% of the range, but at least 2 points on each side
+    const padding = Math.max(2, range * 0.2);
+
+    return {
+      min: Math.max(0, Math.floor(dataMin - padding)),
+      max: Math.min(100, Math.ceil(dataMax + padding)),
     };
   }, [data, selectedModels]);
 
@@ -235,8 +263,8 @@ const BrandVisibilityChart: React.FC<BrandVisibilityChartProps> = ({
           },
         },
         y: {
-          beginAtZero: true,
-          max: 100,
+          min: yAxisBounds.min,
+          max: yAxisBounds.max,
           grid: {
             color: "rgba(0, 0, 0, 0.05)",
           },
@@ -252,7 +280,7 @@ const BrandVisibilityChart: React.FC<BrandVisibilityChartProps> = ({
         },
       },
     }),
-    []
+    [yAxisBounds],
   );
 
   // Default formatDate and isValidDate functions
@@ -288,7 +316,7 @@ const BrandVisibilityChart: React.FC<BrandVisibilityChartProps> = ({
       const values = data
         .map(
           (point) =>
-            point[model as keyof TimeSeriesDataPoint] as number | undefined
+            point[model as keyof TimeSeriesDataPoint] as number | undefined,
         )
         .filter((v): v is number => v !== undefined);
 
