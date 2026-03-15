@@ -1,7 +1,18 @@
 "use client";
 import React, { useState, useEffect } from "react";
 import moment from "moment";
-import { Filter, Building2, Activity, Target, Play, Clock } from "lucide-react";
+import {
+  Filter,
+  Building2,
+  Activity,
+  Target,
+  Play,
+  Clock,
+  AlertCircle,
+  CheckCircle2,
+  XCircle,
+  RotateCcw,
+} from "lucide-react";
 import { Chart as ChartJS, ArcElement, Tooltip, Legend } from "chart.js";
 import { Pie } from "react-chartjs-2";
 import {
@@ -14,7 +25,7 @@ import {
 import Link from "next/link";
 import { DashboardBrand, DashboardResponse } from "@/types/brand";
 import { useUserContext } from "@/context/userContext";
-import { fetchData } from "@/utils/fetch";
+import { fetchData, postData } from "@/utils/fetch";
 import Loading from "@/components/loading";
 import FunnelHeatmap from "@/components/funnel-heatmap";
 import { models, stages } from "@/constants/dashboard";
@@ -27,6 +38,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import AnalysisStartedModal from "@/components/analysis-started-modal";
+import FailedAnalysisDetailModal from "@/components/failed-analysis-detail-modal";
 import { AnalysisModelSelector } from "@/components/analysis-model-selector";
 import { useAnalysisStatus } from "@/hooks/use-analysis-status";
 import { isUserOwner, isUserViewer } from "@/utils/checkUserRole";
@@ -44,12 +56,17 @@ const DashboardPage = ({
   brandId: string;
 }) => {
   const { user } = useUserContext();
-  const { isRunning, currentAnalysis, refreshAnalysisStatus } =
-    useAnalysisStatus({
-      brandId,
-      userId,
-      refreshInterval: 20000,
-    });
+  const {
+    isRunning,
+    isFailed,
+    currentAnalysis,
+    failedAnalysis,
+    refreshAnalysisStatus,
+  } = useAnalysisStatus({
+    brandId,
+    userId,
+    refreshInterval: 20000,
+  });
 
   const [selectedModel, setSelectedModel] = useState("all");
   const [selectedStage, setSelectedStage] = useState("all");
@@ -65,8 +82,11 @@ const DashboardPage = ({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [showAnalysisModal, setShowAnalysisModal] = useState(false);
+  const [isResumeModal, setIsResumeModal] = useState(false);
   const [showAnalysisSelectorModal, setShowAnalysisSelectorModal] =
     useState(false);
+  const [resumeLoading, setResumeLoading] = useState(false);
+  const [showFailureDetails, setShowFailureDetails] = useState(false);
 
   // Fetch analysis runs list
   useEffect(() => {
@@ -130,6 +150,24 @@ const DashboardPage = ({
     selectedModel,
     selectedStage,
   ]);
+
+  const handleResumeAnalysis = async () => {
+    if (!failedAnalysis) return;
+    try {
+      setResumeLoading(true);
+      await postData(`/api/brand/${brandId}/resume-analysis`, {
+        userId: user._id,
+        analysisId: failedAnalysis.analysisId,
+      });
+      setIsResumeModal(true);
+      setShowAnalysisModal(true);
+      refreshAnalysisStatus();
+    } catch (err) {
+      console.error("Error resuming analysis:", err);
+    } finally {
+      setResumeLoading(false);
+    }
+  };
 
   // Loading state
   if (loading) {
@@ -664,6 +702,112 @@ const DashboardPage = ({
         </div>
       )}
 
+      {/* Failed Analysis Status */}
+      {isFailed && failedAnalysis && !isRunning && (
+        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
+          <div className="flex items-start gap-3">
+            <AlertCircle className="h-5 w-5 text-red-600 dark:text-red-400 mt-0.5 flex-shrink-0" />
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center justify-between gap-2 mb-2 flex-wrap">
+                <div className="flex items-center gap-2">
+                  <h4 className="font-medium text-red-900 dark:text-red-100">
+                    Analysis Partially Failed
+                  </h4>
+                  <Badge
+                    variant="destructive"
+                    className="bg-red-100 text-red-800 dark:bg-red-800 dark:text-red-100"
+                  >
+                    Failed
+                  </Badge>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => setShowFailureDetails(true)}
+                    className="text-red-700 hover:bg-red-100 hover:text-red-700 dark:text-red-300 dark:hover:bg-red-900/40"
+                  >
+                    View Details
+                  </Button>
+                  {!isUserViewer(user) && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={handleResumeAnalysis}
+                      disabled={resumeLoading}
+                      className="border-red-300 text-red-700 hover:bg-red-100 hover:text-red-700 dark:border-red-600 dark:text-red-300 dark:hover:bg-red-900/40"
+                    >
+                      <RotateCcw
+                        className={`h-4 w-4 mr-1.5 ${
+                          resumeLoading ? "animate-spin" : ""
+                        }`}
+                      />
+                      {resumeLoading ? "Resuming..." : "Resume Analysis"}
+                    </Button>
+                  )}
+                </div>
+              </div>
+
+              {/* Model breakdown */}
+              {(failedAnalysis.completedModels.length > 0 ||
+                failedAnalysis.failedModels.length > 0) && (
+                <div className="flex flex-wrap gap-2 mb-2">
+                  {failedAnalysis.completedModels.map((m) => (
+                    <span
+                      key={m}
+                      className="inline-flex items-center gap-1 text-xs bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300 px-2 py-0.5 rounded-full"
+                    >
+                      <CheckCircle2 className="h-3 w-3" />
+                      {m}
+                    </span>
+                  ))}
+                  {failedAnalysis.failedModels.map((m) => (
+                    <span
+                      key={m}
+                      className="inline-flex items-center gap-1 text-xs bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300 px-2 py-0.5 rounded-full"
+                    >
+                      <XCircle className="h-3 w-3" />
+                      {m}
+                    </span>
+                  ))}
+                </div>
+              )}
+
+              {/* Progress */}
+              {failedAnalysis.progress && (
+                <div className="space-y-1.5 mb-2">
+                  <div className="flex justify-between text-xs text-red-600 dark:text-red-400">
+                    <span>Completed before failure</span>
+                    <span>
+                      {failedAnalysis.progress.completed_tasks} /{" "}
+                      {failedAnalysis.progress.total_tasks}
+                    </span>
+                  </div>
+                  <div className="w-full bg-red-200 dark:bg-red-800 rounded-full h-2">
+                    <div
+                      className="bg-red-500 dark:bg-red-400 h-2 rounded-full"
+                      style={{
+                        width: `${
+                          failedAnalysis.progress.total_tasks > 0
+                            ? (failedAnalysis.progress.completed_tasks /
+                                failedAnalysis.progress.total_tasks) *
+                              100
+                            : 0
+                        }%`,
+                      }}
+                    />
+                  </div>
+                </div>
+              )}
+
+              <p className="text-xs text-red-600 dark:text-red-400">
+                No additional credits will be charged — resume is free.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Filters */}
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
         <div className="flex items-center space-x-4">
@@ -843,6 +987,7 @@ const DashboardPage = ({
               brandId={brandId}
               onAnalysisStart={() => {
                 setShowAnalysisSelectorModal(false);
+                setIsResumeModal(false);
                 setShowAnalysisModal(true);
                 refreshAnalysisStatus();
               }}
@@ -851,12 +996,25 @@ const DashboardPage = ({
         </DialogContent>
       </Dialog>
 
-      {/* Analysis Started Modal */}
+      {/* Failed Analysis Detail Modal */}
+      {failedAnalysis && (
+        <FailedAnalysisDetailModal
+          isOpen={showFailureDetails}
+          onClose={() => setShowFailureDetails(false)}
+          failedAnalysis={failedAnalysis}
+        />
+      )}
+
+      {/* Analysis Started / Resumed Modal */}
       <AnalysisStartedModal
         isOpen={showAnalysisModal}
-        onClose={() => setShowAnalysisModal(false)}
+        onClose={() => {
+          setShowAnalysisModal(false);
+          setIsResumeModal(false);
+        }}
         brandId={brandId}
         userEmail={user?.email}
+        isResume={isResumeModal}
       />
     </div>
   );
