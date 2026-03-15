@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { Types } from "mongoose";
 import connect from "@/lib/db";
 import AnalysisStatus from "@/lib/models/analysisStatus";
+import AnalysisPair from "@/lib/models/analysisPair";
 import Brand from "@/lib/models/brand";
 import { Membership } from "@/lib/models/membership";
 import { authMiddleware } from "@/middlewares/apis/authMiddleware";
@@ -14,7 +15,7 @@ export const GET = async (request: NextRequest) => {
     if (!authResult.isValid) {
       return new NextResponse(
         JSON.stringify({ message: "Unauthorized access!" }),
-        { status: 401 }
+        { status: 401 },
       );
     }
     const { searchParams } = new URL(request.url);
@@ -25,7 +26,7 @@ export const GET = async (request: NextRequest) => {
     if (!brandId || !Types.ObjectId.isValid(brandId)) {
       return new NextResponse(
         JSON.stringify({ message: "Invalid or missing brandId!" }),
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -33,7 +34,7 @@ export const GET = async (request: NextRequest) => {
     if (!userId || !Types.ObjectId.isValid(userId)) {
       return new NextResponse(
         JSON.stringify({ message: "Invalid or missing userId!" }),
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -63,7 +64,7 @@ export const GET = async (request: NextRequest) => {
         JSON.stringify({
           message: "Insufficient permissions to view analysis status!",
         }),
-        { status: 403 }
+        { status: 403 },
       );
     }
 
@@ -72,6 +73,48 @@ export const GET = async (request: NextRequest) => {
       brand_id: brandId,
       status: "running",
     }).sort({ started_at: -1 });
+
+    // Get most recent failed analysis (only if no running analysis)
+    const failedAnalysis = !runningAnalysis
+      ? await AnalysisStatus.findOne({
+          brand_id: brandId,
+          status: "failed",
+        }).sort({ started_at: -1 })
+      : null;
+
+    // If there's a failed analysis, get full per-pair breakdown from AnalysisPair
+    let failedModels: string[] = [];
+    let completedModels: string[] = [];
+    let pairDetails: {
+      model: string;
+      stage: string;
+      status: string;
+      errorMessage?: string;
+    }[] = [];
+
+    if (failedAnalysis) {
+      const pairs = await AnalysisPair.find({
+        analysis_id: failedAnalysis.analysis_id,
+      }).select({ model: 1, stage: 1, status: 1, error_message: 1 });
+
+      // Full per-pair detail (model × stage with status + error message)
+      pairDetails = pairs.map((p) => ({
+        model: p.model,
+        stage: p.stage,
+        status: p.status,
+        ...(p.error_message ? { errorMessage: p.error_message } : {}),
+      }));
+
+      const allModels = failedAnalysis.models as string[];
+      failedModels = allModels.filter((model) =>
+        pairs.some((p) => p.model === model && p.status === "failed"),
+      );
+      completedModels = allModels.filter((model) =>
+        pairs
+          .filter((p) => p.model === model)
+          .every((p) => p.status === "completed"),
+      );
+    }
 
     // Get recent analysis history (last 5)
     const recentAnalyses = await AnalysisStatus.find({
@@ -95,6 +138,7 @@ export const GET = async (request: NextRequest) => {
         success: true,
         data: {
           isRunning: !!runningAnalysis,
+          isFailed: !!failedAnalysis,
           currentAnalysis: runningAnalysis
             ? {
                 analysisId: runningAnalysis.analysis_id,
@@ -103,6 +147,20 @@ export const GET = async (request: NextRequest) => {
                 stages: runningAnalysis.stages,
                 startedAt: runningAnalysis.started_at,
                 progress: runningAnalysis.progress,
+              }
+            : null,
+          failedAnalysis: failedAnalysis
+            ? {
+                analysisId: failedAnalysis.analysis_id,
+                status: failedAnalysis.status,
+                models: failedAnalysis.models,
+                stages: failedAnalysis.stages,
+                startedAt: failedAnalysis.started_at,
+                errorMessage: failedAnalysis.error_message,
+                progress: failedAnalysis.progress,
+                failedModels,
+                completedModels,
+                pairDetails,
               }
             : null,
           recentAnalyses: recentAnalyses.map((analysis) => ({
@@ -119,7 +177,7 @@ export const GET = async (request: NextRequest) => {
       }),
       {
         status: 200,
-      }
+      },
     );
   } catch (err) {
     console.error("Analysis Status API Error:", err);
@@ -128,7 +186,7 @@ export const GET = async (request: NextRequest) => {
         message: "Error fetching analysis status",
         error: err instanceof Error ? err.message : "Unknown error",
       }),
-      { status: 500 }
+      { status: 500 },
     );
   }
 };

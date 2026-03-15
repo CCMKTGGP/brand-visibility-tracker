@@ -17,6 +17,29 @@ interface CurrentAnalysis {
   progress: AnalysisProgress;
 }
 
+export interface PairDetail {
+  model: "ChatGPT" | "Claude" | "Gemini" | "Perplexity";
+  stage: "TOFU" | "MOFU" | "BOFU" | "EVFU";
+  status: "completed" | "failed" | "pending" | "running";
+  errorMessage?: string;
+}
+
+export interface FailedAnalysis {
+  analysisId: string;
+  status: "failed";
+  models: ("ChatGPT" | "Claude" | "Gemini" | "Perplexity")[];
+  stages: ("TOFU" | "MOFU" | "BOFU" | "EVFU")[];
+  startedAt: string;
+  errorMessage?: string;
+  progress: AnalysisProgress;
+  /** Models that have at least one failed stage pair */
+  failedModels: ("ChatGPT" | "Claude" | "Gemini" | "Perplexity")[];
+  /** Models where every stage pair completed successfully */
+  completedModels: ("ChatGPT" | "Claude" | "Gemini" | "Perplexity")[];
+  /** Full per-pair breakdown (model × stage with status and error message) */
+  pairDetails: PairDetail[];
+}
+
 interface RecentAnalysis {
   analysisId: string;
   status: "running" | "completed" | "failed" | "cancelled";
@@ -30,7 +53,9 @@ interface RecentAnalysis {
 
 interface AnalysisStatusData {
   isRunning: boolean;
+  isFailed: boolean;
   currentAnalysis: CurrentAnalysis | null;
+  failedAnalysis: FailedAnalysis | null;
   recentAnalyses: RecentAnalysis[];
 }
 
@@ -54,14 +79,14 @@ export function useAnalysisStatus({
   const fetchAnalysisStatus = useCallback(async () => {
     try {
       const response = await fetchData(
-        `/api/brand/${brandId}/analysis-status?userId=${userId}&brandId=${brandId}`
+        `/api/brand/${brandId}/analysis-status?userId=${userId}&brandId=${brandId}`,
       );
       const { data } = response;
       setAnalysisStatus(data);
       setFetchUpdatedLogs(true);
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : "Failed to fetch analysis status"
+        err instanceof Error ? err.message : "Failed to fetch analysis status",
       );
     } finally {
       setLoading(false);
@@ -72,7 +97,7 @@ export function useAnalysisStatus({
     fetchAnalysisStatus();
   }, [fetchAnalysisStatus]);
 
-  // auto-refresh every 20 seconds
+  // Auto-refresh while an analysis is actively running
   useEffect(() => {
     if (!autoRefresh || !analysisStatus?.isRunning) {
       return;
@@ -88,7 +113,9 @@ export function useAnalysisStatus({
 
   return {
     isRunning: analysisStatus?.isRunning,
+    isFailed: analysisStatus?.isFailed,
     currentAnalysis: analysisStatus?.currentAnalysis,
+    failedAnalysis: analysisStatus?.failedAnalysis,
     loading,
     error,
     refreshAnalysisStatus: fetchAnalysisStatus,
