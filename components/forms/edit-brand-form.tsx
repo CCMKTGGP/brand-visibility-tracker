@@ -94,7 +94,7 @@ export function EditBrandForm({
         setError(
           `Error fetching brand data - ${
             error instanceof Error ? error.message : "Unknown error"
-          }`
+          }`,
         );
       } finally {
         setLoading(false);
@@ -128,7 +128,7 @@ export function EditBrandForm({
       setError(
         `Error updating brand - ${
           error instanceof Error ? error.message : "Unknown error"
-        }`
+        }`,
       );
     } finally {
       setSaving(false);
@@ -151,7 +151,7 @@ export function EditBrandForm({
       toast.error(
         `Error deleting brand - ${
           error instanceof Error ? error.message : "Unknown error"
-        }`
+        }`,
       );
     } finally {
       setDeleting(false);
@@ -178,9 +178,9 @@ export function EditBrandForm({
                   Editing is not allowed
                 </h3>
                 <p className="text-sm text-blue-700 dark:text-blue-400 mt-1">
-                  This brand has already run analysis. Editing brand details is
-                  disabled to prevent skewing the results. If you need to make
-                  changes, you can clone the brand and make changes to the
+                  This brand has already run an analysis. Editing brand details
+                  is disabled to prevent skewing the results. If you need to
+                  make changes, you can clone the brand and make changes to the
                   cloned brand.
                 </p>
               </div>

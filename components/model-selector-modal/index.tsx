@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -26,25 +26,38 @@ const ModelSelectorModal: React.FC<ModelSelectorModalProps> = ({
   selectedModels,
   onSelectionChange,
 }) => {
+  const [pendingModels, setPendingModels] = useState<string[]>(selectedModels);
+
+  // Sync draft state with the applied selection whenever the modal opens
+  useEffect(() => {
+    if (open) {
+      setPendingModels(selectedModels);
+    }
+  }, [open]);
+
   const handleModelToggle = (model: string) => {
-    if (selectedModels.includes(model)) {
+    if (pendingModels.includes(model)) {
       // Don't allow deselecting if it's the last one
-      if (selectedModels.length === 1) {
+      if (pendingModels.length === 1) {
         return;
       }
-      onSelectionChange(selectedModels.filter((m) => m !== model));
+      setPendingModels(pendingModels.filter((m) => m !== model));
     } else {
-      onSelectionChange([...selectedModels, model]);
+      setPendingModels([...pendingModels, model]);
     }
   };
 
   const handleSelectAll = () => {
-    onSelectionChange([...models]);
+    setPendingModels([...models]);
   };
 
   const handleClearAll = () => {
     // Keep at least one model selected
-    onSelectionChange([models[0]]);
+    setPendingModels([models[0]]);
+  };
+
+  const handleApply = () => {
+    onSelectionChange(pendingModels);
   };
 
   return (
@@ -60,19 +73,24 @@ const ModelSelectorModal: React.FC<ModelSelectorModalProps> = ({
         <div className="py-4">
           <div className="space-y-3">
             {models.map((model) => {
-              const isSelected = selectedModels.includes(model);
+              const isSelected = pendingModels.includes(model);
               return (
                 <div
                   key={model}
-                  className="flex items-center space-x-3 p-3 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+                  role="button"
+                  tabIndex={0}
+                  className="flex items-center space-x-3 p-3 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors cursor-pointer"
+                  onClick={() => {
+                    handleModelToggle(model);
+                  }}
                 >
                   <Checkbox
-                    id={model}
                     checked={isSelected}
+                    disabled={isSelected && pendingModels.length === 1}
+                    onClick={(e) => e.stopPropagation()}
                     onCheckedChange={() => handleModelToggle(model)}
-                    disabled={isSelected && selectedModels.length === 1}
                   />
-                  <label htmlFor={model} className="flex-1 cursor-pointer">
+                  <span className="flex-1 cursor-pointer">
                     <div className="flex items-center justify-between w-full">
                       <span className="text-sm font-medium text-gray-900 dark:text-white">
                         {model}
@@ -83,7 +101,7 @@ const ModelSelectorModal: React.FC<ModelSelectorModalProps> = ({
                         </Badge>
                       )}
                     </div>
-                  </label>
+                  </span>
                 </div>
               );
             })}
@@ -91,14 +109,14 @@ const ModelSelectorModal: React.FC<ModelSelectorModalProps> = ({
         </div>
         <div className="flex items-center justify-between pt-4 border-t border-gray-200 dark:border-gray-700">
           <div className="text-sm text-gray-500 dark:text-gray-400">
-            {selectedModels.length} of {models.length} selected
+            {pendingModels.length} of {models.length} selected
           </div>
           <div className="flex gap-2">
             <Button
               variant="outline"
               size="sm"
               onClick={handleClearAll}
-              disabled={selectedModels.length === 1}
+              disabled={pendingModels.length === 1}
             >
               Clear
             </Button>
@@ -106,9 +124,16 @@ const ModelSelectorModal: React.FC<ModelSelectorModalProps> = ({
               variant="outline"
               size="sm"
               onClick={handleSelectAll}
-              disabled={selectedModels.length === models.length}
+              disabled={pendingModels.length === models.length}
             >
               Select All
+            </Button>
+            <Button
+              size="sm"
+              onClick={handleApply}
+              disabled={pendingModels.length === 0}
+            >
+              Apply
             </Button>
           </div>
         </div>

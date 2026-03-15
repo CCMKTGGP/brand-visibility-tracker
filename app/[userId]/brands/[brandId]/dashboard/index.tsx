@@ -54,13 +54,13 @@ const DashboardPage = ({
   const [selectedModel, setSelectedModel] = useState("all");
   const [selectedStage, setSelectedStage] = useState("all");
   const [selectedAnalysisId, setSelectedAnalysisId] = useState<string | null>(
-    null
+    null,
   );
   const [analysisRuns, setAnalysisRuns] = useState<
     Array<{ analysis_id: string; createdAt: string; count: number }>
   >([]);
   const [dashboardData, setDashboardData] = useState<DashboardResponse | null>(
-    null
+    null,
   );
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -86,6 +86,14 @@ const DashboardPage = ({
     fetchAnalysisRuns();
   }, [userId, brandId, user._id]);
 
+  // Auto-select the latest analysis run once runs are loaded;
+  // if none exist, leave selectedAnalysisId as null (All Analyses Averaged)
+  useEffect(() => {
+    if (analysisRuns.length > 0) {
+      setSelectedAnalysisId(analysisRuns[0].analysis_id);
+    }
+  }, [analysisRuns]);
+
   // Fetch dashboard data
   useEffect(() => {
     async function fetchDashboardData() {
@@ -98,7 +106,7 @@ const DashboardPage = ({
         let url = `/api/brand/${brandId}/dashboard?userId=${user._id}&model=${selectedModel}&stage=${selectedStage}`;
         if (selectedAnalysisId) {
           url += `&selectedAnalysisId=${encodeURIComponent(
-            selectedAnalysisId
+            selectedAnalysisId,
           )}`;
         }
         const response = await fetchData(url);
@@ -106,7 +114,7 @@ const DashboardPage = ({
         setDashboardData(data);
       } catch (err) {
         setError(
-          err instanceof Error ? err.message : "Failed to fetch dashboard data"
+          err instanceof Error ? err.message : "Failed to fetch dashboard data",
         );
       } finally {
         setLoading(false);
@@ -261,7 +269,7 @@ const DashboardPage = ({
                 <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3">
                   <div
                     className={`h-3 rounded-full ${getScoreColor(
-                      scores[stage]
+                      scores[stage],
                     )}`}
                     style={{ width: `${scores[stage]}%` }}
                   />
@@ -269,7 +277,7 @@ const DashboardPage = ({
               </div>
               <div
                 className={`w-12 text-right text-sm font-semibold ${getScoreTextColor(
-                  scores[stage]
+                  scores[stage],
                 )}`}
               >
                 {scores[stage]}%
@@ -418,7 +426,7 @@ const DashboardPage = ({
               <div className="text-right">
                 <div
                   className={`text-lg font-semibold ${getScoreTextColor(
-                    data.score
+                    data.score,
                   )}`}
                 >
                   {data.score}%
@@ -428,7 +436,7 @@ const DashboardPage = ({
                 </div>
               </div>
             </div>
-          )
+          ),
         )}
       </div>
     </div>
@@ -471,7 +479,7 @@ const DashboardPage = ({
                     <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
                       <div
                         className={`h-2 rounded-full ${getScoreColor(
-                          data.scores[index]
+                          data.scores[index],
                         )}`}
                         style={{ width: `${data.scores[index]}%` }}
                       />
@@ -496,7 +504,7 @@ const DashboardPage = ({
             <div className="w-[15%]">
               <p
                 className={`text-sm ${getScoreTextColor(
-                  data.scores[index]
+                  data.scores[index],
                 )} text-center`}
               >
                 {data.scores[index]}%
@@ -527,31 +535,49 @@ const DashboardPage = ({
             </p>
           </div>
         </div>
-        {!isUserViewer(user) && (
-          <div className="flex items-center gap-3">
-            <Button
-              onClick={() => setShowAnalysisSelectorModal(true)}
-              disabled={isRunning}
-              className={`flex items-center gap-2 ${
-                isRunning
-                  ? "bg-gray-400 cursor-not-allowed"
-                  : "bg-primary hover:bg-primary/90"
-              }`}
+        <div className="ml-auto flex items-center gap-2">
+          <div className="flex space-x-2">
+            {isUserOwner(user) && (
+              <Link
+                href={`/${userId}/brands/${brandId}/brand-settings`}
+                className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+              >
+                View Settings
+              </Link>
+            )}
+            <Link
+              href={`/${userId}/brands/${brandId}/ai-responses`}
+              className="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary/90 rounded-md transition-colors"
             >
-              {isRunning ? (
-                <>
-                  <Clock className="w-4 h-4 animate-pulse" />
-                  Analysis Running...
-                </>
-              ) : (
-                <>
-                  <Play className="w-4 h-4" />
-                  Trigger Analysis
-                </>
-              )}
-            </Button>
+              View AI Responses
+            </Link>
           </div>
-        )}
+          {!isUserViewer(user) && (
+            <div className="flex items-center gap-3">
+              <Button
+                onClick={() => setShowAnalysisSelectorModal(true)}
+                disabled={isRunning}
+                className={`flex items-center gap-2 ${
+                  isRunning
+                    ? "bg-gray-400 cursor-not-allowed"
+                    : "bg-primary hover:bg-primary/90"
+                }`}
+              >
+                {isRunning ? (
+                  <>
+                    <Clock className="w-4 h-4 animate-pulse" />
+                    Analysis Running...
+                  </>
+                ) : (
+                  <>
+                    <Play className="w-4 h-4" />
+                    Trigger Analysis
+                  </>
+                )}
+              </Button>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Brand Info Header */}
@@ -585,22 +611,6 @@ const DashboardPage = ({
                 </span>
               </div>
             </div>
-          </div>
-          <div className="flex space-x-2">
-            {isUserOwner(user) && (
-              <Link
-                href={`/${userId}/brands/${brandId}/edit-brand`}
-                className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-              >
-                Edit Brand
-              </Link>
-            )}
-            <Link
-              href={`/${userId}/brands/${brandId}/view-logs`}
-              className="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary/90 rounded-md transition-colors"
-            >
-              View Logs
-            </Link>
           </div>
         </div>
       </div>
@@ -753,12 +763,12 @@ const DashboardPage = ({
         <MetricCard
           title="Overall Score"
           value={`${Math.round(
-            dashboardData.currentPeriodMetrics.avgOverallScore || 0
+            dashboardData.currentPeriodMetrics.avgOverallScore || 0,
           )}%`}
           subtitle="Average score"
           icon={<Target className="w-5 h-5 text-primary" />}
         />
-        <MetricCard
+        {/* <MetricCard
           title="Success Rate"
           value={`${dashboardData.currentPeriodMetrics.successRate}%`}
           subtitle="Average success rate"
@@ -771,7 +781,7 @@ const DashboardPage = ({
           )}s`}
           subtitle="Average processing time"
           icon={<Activity className="w-5 h-5 text-primary" />}
-        />
+        /> */}
       </div>
 
       {/* Heatmap Section */}
