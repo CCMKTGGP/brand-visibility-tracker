@@ -111,8 +111,8 @@ export class AIService {
             }\n` +
             `Response preview (first 300 chars): ${response.substring(
               0,
-              300
-            )}...`
+              300,
+            )}...`,
         );
       }
     }
@@ -140,8 +140,8 @@ export class AIService {
     if (missingFields.length > 0) {
       throw new Error(
         `Missing required fields in AI response: ${missingFields.join(
-          ", "
-        )}\n` + `Available fields: ${Object.keys(parsed).join(", ")}`
+          ", ",
+        )}\n` + `Available fields: ${Object.keys(parsed).join(", ")}`,
       );
     }
 
@@ -379,7 +379,7 @@ export class AIService {
     prompt: string,
     data: string,
     brandData: IBrand,
-    stage?: string
+    stage?: string,
   ): Promise<
     ParsedAIResponse & {
       competitorData?: {
@@ -390,7 +390,7 @@ export class AIService {
   > {
     // * Get stage-specific scoring rules
     const scoringSystemMessage = this.getScoringSystemMessage(
-      stage as AnalysisStage
+      stage as AnalysisStage,
     );
 
     // * Build the scoring prompt with context
@@ -454,7 +454,7 @@ export class AIService {
       // * Call ChatGPT to score and structure the response
       const scoringResult = await LLMService.callChatGPT(
         scoringPrompt,
-        scoringSystemMessage
+        scoringSystemMessage,
       );
 
       // * Extract JSON using robust parsing strategies
@@ -485,7 +485,7 @@ export class AIService {
       throw new Error(
         `Failed to parse AI response: ${
           error instanceof Error ? error.message : "Unknown error"
-        }`
+        }`,
       );
     }
   }
@@ -621,7 +621,7 @@ export class AIService {
     model: AIModel,
     prompt: string,
     brandData: IBrand,
-    stage?: string
+    stage?: string,
   ): Promise<AIAnalysisResult> {
     const startTime = Date.now();
 
@@ -654,7 +654,7 @@ export class AIService {
         prompt,
         aiResponse.response,
         brandData,
-        stage
+        stage,
       );
 
       // ? SUCCESS: Return complete analysis result
@@ -746,7 +746,7 @@ export class AIService {
   public static async analyzeWithMultiplePrompts(
     brandData: IBrand,
     model: AIModel,
-    stage: AnalysisStage
+    stage: AnalysisStage,
   ): Promise<AIAnalysisResults> {
     try {
       // * Retrieve all prompts configured for this stage
@@ -775,7 +775,7 @@ export class AIService {
         // ? Replace brand-specific placeholders in the prompt template
         const processedPromptText = PromptService.replacePromptPlaceholders(
           prompt.prompt_text,
-          brandData
+          brandData,
         );
 
         // ? Analyze with the current model (returns ONE result - success OR error)
@@ -783,7 +783,7 @@ export class AIService {
           model,
           processedPromptText,
           brandData,
-          stage
+          stage,
         );
 
         // * Store the result (single push - no duplicates!)
@@ -853,7 +853,7 @@ export class AIService {
       if (successfulPrompts === 0) {
         throw new Error(
           `All ${stagePrompts.length} prompts failed for ${model}-${stage}. ` +
-            `Check promptResults for individual error details.`
+            `Check promptResults for individual error details.`,
         );
       }
 
@@ -862,7 +862,7 @@ export class AIService {
         console.warn(
           `Partial failure: ${stagePrompts.length - successfulPrompts} of ${
             stagePrompts.length
-          } prompts failed for ${model}-${stage}`
+          } prompts failed for ${model}-${stage}`,
         );
       }
 
@@ -886,7 +886,7 @@ export class AIService {
         // ? Calculate total sentiment points across all successful prompts
         const total = Object.values(sentimentScores).reduce(
           (sum, val) => sum + val,
-          0
+          0,
         );
 
         // ? Convert to percentages
@@ -896,7 +896,7 @@ export class AIService {
             neutral: Math.round((sentimentScores.neutral / total) * 100),
             negative: Math.round((sentimentScores.negative / total) * 100),
             strongly_positive: Math.round(
-              (sentimentScores.strongly_positive / total) * 100
+              (sentimentScores.strongly_positive / total) * 100,
             ),
           };
         }
@@ -912,7 +912,7 @@ export class AIService {
         aggregatedSentiment.confidence = Math.round(
           (Math.max(...Object.values(sentimentScores)) /
             totalSentimentResponses) *
-            100
+            100,
         );
       }
 
@@ -929,12 +929,12 @@ export class AIService {
       // ! Fatal error: log and re-throw for upstream handling
       console.error(
         `Multi-prompt analysis error for ${model}-${stage}:`,
-        error
+        error,
       );
       throw new Error(
         `Failed to complete multi-prompt analysis: ${
           error instanceof Error ? error.message : "Unknown error"
-        }`
+        }`,
       );
     }
   }

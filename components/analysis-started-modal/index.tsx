@@ -17,6 +17,8 @@ interface AnalysisStartedModalProps {
   onClose: () => void;
   brandId: string;
   userEmail?: string;
+  /** When true the modal shows "resumed" messaging instead of "started" */
+  isResume?: boolean;
 }
 
 export default function AnalysisStartedModal({
@@ -24,6 +26,7 @@ export default function AnalysisStartedModal({
   onClose,
   brandId,
   userEmail,
+  isResume = false,
 }: AnalysisStartedModalProps) {
   const [brandName, setBrandName] = useState("");
   const [useCase, setUseCase] = useState<string | null>(null);
@@ -98,6 +101,72 @@ export default function AnalysisStartedModal({
         </DialogContent>
       );
     }
+    if (isResume) {
+      return (
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CheckCircle className="h-5 w-5 text-green-500" />
+              Analysis Resumed!
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div className="flex items-start gap-3 p-4 bg-green-50 rounded-lg border border-green-200">
+              <CheckCircle className="h-5 w-5 text-green-500 mt-0.5 flex-shrink-0" />
+              <div>
+                <p className="font-medium text-green-900">
+                  Retrying failed models in the background
+                </p>
+                <p className="text-sm text-green-700 mt-1">
+                  Picking up from where it left off for{" "}
+                  <strong>{brandName}</strong>. Already-completed models are
+                  skipped automatically.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-start gap-3 p-4 bg-blue-50 rounded-lg border border-blue-200">
+              <Clock className="h-5 w-5 text-blue-500 mt-0.5 flex-shrink-0" />
+              <div>
+                <p className="font-medium text-blue-900">
+                  Estimated completion time
+                </p>
+                <p className="text-sm text-blue-700 mt-1">
+                  Shorter than a fresh run — only failed models are retried
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-start gap-3 p-4 bg-purple-50 rounded-lg border border-purple-200">
+              <Mail className="h-5 w-5 text-purple-500 mt-0.5 flex-shrink-0" />
+              <div>
+                <p className="font-medium text-purple-900">Email notification</p>
+                <p className="text-sm text-purple-700 mt-1">
+                  We&apos;ll send you an email at{" "}
+                  <strong>{userEmail || "your registered email"}</strong> once
+                  the full analysis is complete.
+                </p>
+              </div>
+            </div>
+
+            <div className="bg-gray-50 border border-gray-200 p-4 rounded-lg">
+              <p className="text-sm text-gray-600">
+                <strong>No additional credits charged</strong> — you already
+                paid for this analysis run. Resume is always free.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex justify-end">
+            <Button onClick={onClose} className="w-full sm:w-auto">
+              Got it, thanks!
+            </Button>
+          </div>
+        </DialogContent>
+      );
+    }
+
     return (
       <DialogContent className="sm:max-w-md">
         <DialogHeader>

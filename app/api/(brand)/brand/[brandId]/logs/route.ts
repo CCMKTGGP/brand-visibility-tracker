@@ -13,10 +13,10 @@ import { qstash } from "@/lib/qstash";
 import AnalysisStatus from "@/lib/models/analysisStatus";
 import AnalysisPair from "@/lib/models/analysisPair";
 import User from "@/lib/models/user";
-import { AIService } from "@/lib/services/aiService";
-import { DataOrganizationService } from "@/lib/services/dataOrganizationService";
-import { analysisCompletionEmailTemplate } from "@/utils/analysisCompletionEmailTemplate";
-import { sendEmail } from "@/utils/sendEmail";
+import {
+  runAnalysisPairs,
+  finalizeAnalysis,
+} from "@/lib/services/analysisRunnerService";
 import moment from "moment";
 
 const LogsQuerySchema = z.object({
@@ -44,7 +44,9 @@ const LogsQuerySchema = z.object({
 
 const TriggerAnalysisSchema = z.object({
   userId: z.string().min(1, "User ID is required"),
-  models: z.array(z.enum(["ChatGPT", "Claude", "Gemini", "Perplexity"])).optional(),
+  models: z
+    .array(z.enum(["ChatGPT", "Claude", "Gemini", "Perplexity"]))
+    .optional(),
   stages: z.array(z.enum(["TOFU", "MOFU", "BOFU", "EVFU"])).optional(),
 });
 
@@ -75,103 +77,33 @@ async function runFullAnalysis({
   const user = await User.findById(userId);
   if (!brand || !user) throw new Error("Brand or user not found");
 
-  // 4. Process each model-stage combo
-  for (const model of models) {
-    for (const stage of stages) {
-      console.log(`Running analysis for ${model}-${stage}`);
-
-      await AnalysisStatus.findOneAndUpdate(
-        { analysis_id: analysisId },
-        {
-          $set: {
-            "progress.current_task": `Running analysis for ${model}-${stage}`,
-          },
-        }
-      );
-
-      await AnalysisPair.findOneAndUpdate(
-        { analysis_id: analysisId, model, stage },
-        { status: "running" }
-      );
-
-      const result = await AIService.analyzeWithMultiplePrompts(
-        brand,
-        model,
-        stage
-      );
-      if (!result) throw new Error("AI result empty");
-
-      await DataOrganizationService.processAndStoreAnalysis(
-        brandId,
-        model,
-        stage,
-        result,
-        userId,
-        "manual",
-        analysisId // Pass the analysis_id to group all analyses from this run
-      );
-
-      await AnalysisPair.findOneAndUpdate(
-        { analysis_id: analysisId, model, stage },
-        { status: "completed" }
-      );
-
-      await AnalysisStatus.updateOne(
-        { analysis_id: analysisId },
-        { $inc: { "progress.completed_tasks": 1 } }
-      );
-    }
-  }
-
-  // 5. Finalize and send email
-  const results = await MultiPromptAnalysis.find({
-    brand_id: new Types.ObjectId(brandId),
-    createdAt: { $gte: currentAnalysis.started_at },
+  // 4. Process each model-stage combo using the shared runner service
+  await runAnalysisPairs({
+    brandId,
+    userId,
+    analysisId,
+    models,
+    stages,
+    brand,
   });
 
-  const totalAnalyses = results.length;
-  const avgScore = totalAnalyses
-    ? results.reduce((s, r) => s + r.overall_score, 0) / totalAnalyses
-    : 0;
-  const avgWeightedScore = totalAnalyses
-    ? results.reduce((s, r) => s + r.weighted_score, 0) / totalAnalyses
-    : 0;
+  // 5. Finalise — set terminal status and send email only if all succeeded
+  await finalizeAnalysis({
+    brandId,
+    userId,
+    analysisId,
+    brand,
+    user,
+    startedAt: currentAnalysis.started_at,
+  });
 
-  await AnalysisStatus.updateOne(
-    { analysis_id: analysisId },
-    {
-      $set: {
-        status: "completed",
-        "progress.current_task": "All analyses completed",
-      },
-    }
-  );
-
-  const dashboardLink = `${process.env.NEXT_PUBLIC_BASE_URL}/${userId}/brands/${brandId}/dashboard`;
-  const emailTemplate = analysisCompletionEmailTemplate(
-    brand.name,
-    dashboardLink,
-    {
-      totalAnalyses,
-      averageScore: Math.round(avgScore * 100) / 100,
-      averageWeightedScore: Math.round(avgWeightedScore * 100) / 100,
-      completionTime: Date.now() - currentAnalysis.started_at.getTime(),
-    }
-  );
-
-  await sendEmail(
-    user.email,
-    `Analysis Complete - ${brand.name}`,
-    emailTemplate
-  );
-
-  console.log(`🎉 Analysis ${analysisId} completed successfully!`);
+  console.log(`Analysis ${analysisId} run complete.`);
 }
 
 // Brand analysis logs API
 export const GET = async (
   request: Request,
-  context: { params: RouteParams<BrandParams> }
+  context: { params: RouteParams<BrandParams> },
 ) => {
   try {
     // Authenticate the request
@@ -179,7 +111,7 @@ export const GET = async (
     if (!authResult.isValid) {
       return new NextResponse(
         JSON.stringify({ message: "Unauthorized access!" }),
-        { status: 401 }
+        { status: 401 },
       );
     }
 
@@ -190,14 +122,15 @@ export const GET = async (
     if (!brandId || !Types.ObjectId.isValid(brandId)) {
       return new NextResponse(
         JSON.stringify({ message: "Invalid or missing brandId!" }),
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     // Parse query parameters
     const queryParams = {
       userId: url.searchParams.get("userId"),
-      selectedAnalysisId: url.searchParams.get("selectedAnalysisId") || undefined,
+      selectedAnalysisId:
+        url.searchParams.get("selectedAnalysisId") || undefined,
       model: url.searchParams.get("model"),
       stage: url.searchParams.get("stage"),
       status: url.searchParams.get("status"),
@@ -213,7 +146,7 @@ export const GET = async (
           message: "Invalid query parameters!",
           data: `${parse.error.issues[0]?.path} - ${parse.error.issues[0]?.message}`,
         }),
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -250,7 +183,7 @@ export const GET = async (
     if (!isOwner && !membership) {
       return new NextResponse(
         JSON.stringify({ message: "Access denied to this brand!" }),
-        { status: 403 }
+        { status: 403 },
       );
     }
 
@@ -458,7 +391,7 @@ export const GET = async (
         message: "Logs fetched successfully!",
         data: response,
       }),
-      { status: 200 }
+      { status: 200 },
     );
   } catch (err) {
     console.error("Logs API Error:", err);
@@ -467,7 +400,7 @@ export const GET = async (
         message: "Error fetching logs",
         error: err instanceof Error ? err.message : "Unknown error",
       }),
-      { status: 500 }
+      { status: 500 },
     );
   }
 };
@@ -475,7 +408,7 @@ export const GET = async (
 // Trigger new analysis API
 export const POST = async (
   request: Request,
-  context: { params: RouteParams<BrandParams> }
+  context: { params: RouteParams<BrandParams> },
 ) => {
   try {
     // Authenticate the request
@@ -483,7 +416,7 @@ export const POST = async (
     if (!authResult.isValid) {
       return new NextResponse(
         JSON.stringify({ message: "Unauthorized access!" }),
-        { status: 401 }
+        { status: 401 },
       );
     }
 
@@ -493,7 +426,7 @@ export const POST = async (
     if (!brandId || !Types.ObjectId.isValid(brandId)) {
       return new NextResponse(
         JSON.stringify({ message: "Invalid or missing brandId!" }),
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -506,7 +439,7 @@ export const POST = async (
           message: "Invalid request body!",
           data: `${parse.error.issues[0]?.path} - ${parse.error.issues[0]?.message}`,
         }),
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -547,7 +480,7 @@ export const POST = async (
         JSON.stringify({
           message: "Insufficient permissions to trigger analysis!",
         }),
-        { status: 403 }
+        { status: 403 },
       );
     }
 
@@ -569,7 +502,7 @@ export const POST = async (
             progress: runningAnalysis.progress,
           },
         }),
-        { status: 409 } // Conflict
+        { status: 409 }, // Conflict
       );
     }
 
@@ -596,14 +529,14 @@ export const POST = async (
           message: "Invalid analysis request!",
           errors: validation.errors,
         }),
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     // Check if user has enough credits
     const creditCheck = await CreditService.hasEnoughCredits(
       userId,
-      validation.creditsNeeded
+      validation.creditsNeeded,
     );
 
     if (!creditCheck.hasEnough) {
@@ -616,7 +549,7 @@ export const POST = async (
             breakdown: validation.breakdown,
           },
         }),
-        { status: 402 } // Payment Required
+        { status: 402 }, // Payment Required
       );
     }
 
@@ -676,8 +609,8 @@ export const POST = async (
         validation.creditsNeeded,
         analysisId,
         `Analysis for brand: ${brand.name} (${modelsToAnalyze.join(
-          ", "
-        )} - ${stagesToAnalyze.join(", ")})`
+          ", ",
+        )} - ${stagesToAnalyze.join(", ")})`,
       );
       newBalance = newBalanceResult;
       totalCreditUsed = totalCreditUsedResult;
@@ -687,7 +620,7 @@ export const POST = async (
         JSON.stringify({
           message: "Error processing credits. Please try again.",
         }),
-        { status: 500 }
+        { status: 500 },
       );
     }
 
@@ -722,7 +655,7 @@ export const POST = async (
         {
           status: 200,
           headers: { "Content-Type": "application/json" },
-        }
+        },
       );
     }
 
@@ -768,7 +701,7 @@ export const POST = async (
       {
         status: 200,
         headers: { "Content-Type": "application/json" },
-      }
+      },
     );
   } catch (err) {
     console.error("Trigger Analysis API Error:", err);
@@ -777,7 +710,7 @@ export const POST = async (
         message: "Error triggering analysis",
         error: err instanceof Error ? err.message : "Unknown error",
       }),
-      { status: 500 }
+      { status: 500 },
     );
   }
 };
